@@ -44,6 +44,7 @@
 
   <ItemGroup>
     <None Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="SystemInfo.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
