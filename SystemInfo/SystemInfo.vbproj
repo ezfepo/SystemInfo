@@ -22,6 +22,7 @@
     <Deterministic>true</Deterministic>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ApplicationIcon>SystemInfo.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
