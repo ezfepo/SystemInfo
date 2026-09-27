@@ -2,6 +2,7 @@
     Private _WMIViewer As New WMIViewer
 
     Private Sub frmMain_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
+        Me.Icon = New Icon(IO.Path.Combine(AppContext.BaseDirectory, "SystemInfo.ico"))
         optShort.Checked = True
         _WMIViewer.ConfigurationType = ConfigurationTypeEnum.Short
     End Sub
