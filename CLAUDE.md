@@ -19,6 +19,8 @@ dotnet build SystemInfo.slnx      # build
 dotnet run --project SystemInfo/SystemInfo.vbproj   # run (user mode)
 ```
 
+`Directory.Build.props` defaults `Configuration` to `Release` when `-c`/`--configuration` isn't passed, so plain `dotnet build`/`clean`/`build -t:Rebuild` (and the VS Code tasks in `.vscode/tasks.json`) all produce Release output. Pass `-c Debug` explicitly to get a Debug build.
+
 No automated tests or CI configured.
 
 ## Architecture (main flow)

@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "SystemInfo (user mode)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/SystemInfo/bin/Release/net8.0-windows/SystemInfo.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/SystemInfo/bin/Release/net8.0-windows",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
+            "name": "SystemInfo (admin mode)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/SystemInfo/bin/Release/net8.0-windows/SystemInfo.exe",
+            "args": [
+                "-admin"
+            ],
+            "cwd": "${workspaceFolder}/SystemInfo/bin/Release/net8.0-windows",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        }
+    ]
+}
