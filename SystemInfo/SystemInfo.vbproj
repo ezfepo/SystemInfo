@@ -47,4 +47,11 @@
     <None Include="SystemInfo.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Remote computer setup script, shown by frmRemoteSetup -->
+    <EmbeddedResource Include="..\docs\enable-remote-wmi.ps1" LogicalName="enable-remote-wmi.ps1" />
+    <!-- Microsoft list of processors supported by Windows 11, used by ProcessorSupport (see docs\update-supported-processors.ps1) -->
+    <EmbeddedResource Include="Data\windows11-supported-processors.txt" LogicalName="windows11-supported-processors.txt" />
+  </ItemGroup>
+
 </Project>

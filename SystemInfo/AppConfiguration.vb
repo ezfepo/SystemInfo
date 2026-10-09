@@ -21,4 +21,17 @@ Public Module AppConfiguration
         End Get
     End Property
 
+    ''' <summary>
+    ''' Color theme: "light", "dark" or "auto" (default; follows the Windows app mode). The choice the user
+    ''' made in the UI wins; otherwise "Theme" in appsettings.json is used, lower-cased. Any other value means "auto".
+    ''' </summary>
+    Public ReadOnly Property Theme() As String
+        Get
+            If UserSettings.Theme.Length > 0 Then Return UserSettings.Theme
+
+            Dim oTheme As String = If(_Configuration("Theme"), String.Empty).Trim().ToLowerInvariant()
+            Return If(oTheme = "light" OrElse oTheme = "dark", oTheme, "auto")
+        End Get
+    End Property
+
 End Module

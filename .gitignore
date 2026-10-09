@@ -2,9 +2,12 @@
 [Bb]in/
 [Oo]bj/
 
-# Reportes XML generados en tiempo de ejecución
+# XML reports generated at runtime
 xml/
 SystemInfo.*.xml
+
+# Claude Code plans (local only, not versioned)
+.claude/plans/
 
 # Visual Studio
 .vs/

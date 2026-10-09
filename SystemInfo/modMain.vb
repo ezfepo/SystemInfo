@@ -1,30 +1,21 @@
-﻿Module modMain
-    Public Admin As Boolean = False
-
-    Private Const CMD_ADMIN As String = "admin"
-
-    Public Sub CheckCommandLine()
-        For Each arg As String In Environment.GetCommandLineArgs()
-            If arg.StartsWith("-") Then
-                Select Case arg.Substring(1).ToLower()
-                    Case CMD_ADMIN
-                        Admin = True
-                End Select
-            End If
-        Next
-    End Sub
+Module modMain
 
     Public Sub Main()
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2)
         Application.EnableVisualStyles()
-        CheckCommandLine()
+        Application.SetCompatibleTextRenderingDefault(False)
+        Application.SetDefaultFont(UiTheme.BaseFont)
 
-        If Admin Then
-            Dim pfrmMain As New frmMain
-            Application.Run(pfrmMain)
-        Else
-            Dim pfrmSystemInfo As New frmSystemInfo
-            Application.Run(pfrmSystemInfo)
-        End If
+        Application.Run(New frmMain With {.StartupReport = FindReportArgument()})
     End Sub
+
+    ''' <summary>The first command-line argument that is an existing .xml file: the report to open at startup.</summary>
+    Private Function FindReportArgument() As String
+        Dim oArguments() As String = Environment.GetCommandLineArgs()
+        For i As Integer = 1 To oArguments.Length - 1
+            If oArguments(i).EndsWith(".xml", StringComparison.OrdinalIgnoreCase) AndAlso IO.File.Exists(oArguments(i)) Then Return oArguments(i)
+        Next
+        Return String.Empty
+    End Function
 
 End Module

@@ -11,7 +11,7 @@ Module modConfigurations
         pXmlDocument.AppendChild(pXmlDocument.CreateProcessingInstruction("xml", "version='1.0' encoding='utf-8'"))
 
         Dim pSystemInfo As XmlElement = pXmlDocument.CreateElement("SystemInfo")
-        pSystemInfo.SetAttribute("Type", "Resume")
+        pSystemInfo.SetAttribute("Type", "Short")
         pXmlDocument.AppendChild(pSystemInfo)
 
         Dim pXmlClass As XmlElement
@@ -112,6 +112,7 @@ Module modConfigurations
         AddAttribute(pXmlClass, "SystemType")
         'AddAttribute(pXmlClass, "ThermalState")
         AddAttribute(pXmlClass, "TotalPhysicalMemory")
+        AddAttribute(pXmlClass, "UserName")
         'AddAttribute(pXmlClass, "Workgroup")
 
         'pXmlClass = AddItem(pSystemInfo, "Win32_ComputerSystemProduct")
@@ -205,6 +206,7 @@ Module modConfigurations
 
         pXmlClass = AddItem(pSystemInfo, "Win32_OperatingSystem")
         AddAttribute(pXmlClass, "BuildNumber")
+        AddAttribute(pXmlClass, "LastBootUpTime")
         'AddAttribute(pXmlClass, "BuildType")
         AddAttribute(pXmlClass, "CSDVersion")
         'AddAttribute(pXmlClass, "EncryptionLevel")
@@ -230,7 +232,9 @@ Module modConfigurations
         AddAttribute(pXmlClass, "MemoryType")
         AddAttribute(pXmlClass, "PartNumber")
         'AddAttribute(pXmlClass, "SerialNumber")
-        AddAttribute(pXmlClass, "Spedd")
+        AddAttribute(pXmlClass, "Speed")
+        AddAttribute(pXmlClass, "SMBIOSMemoryType")
+        AddAttribute(pXmlClass, "DeviceLocator")
         'AddAttribute(pXmlClass, "TotalWidth")
         'AddAttribute(pXmlClass, "TypeDetail")
 
@@ -391,6 +395,119 @@ Module modConfigurations
         AddAttribute(pXmlClass, "Name")
         'AddAttribute(pXmlClass, "SerialNumber")
 
+        pXmlClass = AddItem(pSystemInfo, "Win32_PhysicalMemoryArray")
+        AddAttribute(pXmlClass, "MemoryDevices")
+        AddAttribute(pXmlClass, "MaxCapacityEx")
+
+        pXmlClass = AddItem(pSystemInfo, "MSFT_PhysicalDisk")
+        AddAttribute(pXmlClass, "FriendlyName")
+        AddAttribute(pXmlClass, "MediaType")
+        AddAttribute(pXmlClass, "BusType")
+        AddAttribute(pXmlClass, "HealthStatus")
+        AddAttribute(pXmlClass, "Size")
+
+        pXmlClass = AddItem(pSystemInfo, "WindowsRelease")
+        AddAttribute(pXmlClass, "Caption")
+        AddAttribute(pXmlClass, "DisplayVersion")
+        AddAttribute(pXmlClass, "Build")
+
+        pXmlClass = AddItem(pSystemInfo, "SoftwareLicensingProduct")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "LicenseStatus")
+
+        pXmlClass = AddItem(pSystemInfo, "BootSecurity")
+        AddAttribute(pXmlClass, "FirmwareType")
+        AddAttribute(pXmlClass, "SecureBoot")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_Tpm")
+        AddAttribute(pXmlClass, "SpecVersion")
+        AddAttribute(pXmlClass, "IsEnabled_InitialValue")
+        AddAttribute(pXmlClass, "IsActivated_InitialValue")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_EncryptableVolume")
+        AddAttribute(pXmlClass, "DriveLetter")
+        AddAttribute(pXmlClass, "ProtectionStatus")
+
+        pXmlClass = AddItem(pSystemInfo, "AntiVirusProduct")
+        AddAttribute(pXmlClass, "displayName")
+
+        pXmlClass = AddItem(pSystemInfo, "MSFT_MpComputerStatus")
+        AddAttribute(pXmlClass, "AntivirusEnabled")
+        AddAttribute(pXmlClass, "RealTimeProtectionEnabled")
+        AddAttribute(pXmlClass, "AntivirusSignatureLastUpdated")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_QuickFixEngineering")
+        AddAttribute(pXmlClass, "HotFixID")
+        AddAttribute(pXmlClass, "InstalledOn")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_PnPEntity")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "ConfigManagerErrorCode")
+
+        pXmlClass = AddItem(pSystemInfo, "InstalledSoftware")
+        AddAttribute(pXmlClass, "DisplayName")
+        AddAttribute(pXmlClass, "DisplayVersion")
+        AddAttribute(pXmlClass, "Publisher")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_NetworkAdapterConfiguration")
+        AddAttribute(pXmlClass, "Description")
+        AddAttribute(pXmlClass, "IPAddress")
+        AddAttribute(pXmlClass, "DefaultIPGateway")
+        AddAttribute(pXmlClass, "DNSServerSearchOrder")
+        AddAttribute(pXmlClass, "DHCPEnabled")
+        AddAttribute(pXmlClass, "MACAddress")
+
+        pXmlClass = AddItem(pSystemInfo, "BatteryHealth")
+        AddAttribute(pXmlClass, "HealthPercent")
+        AddAttribute(pXmlClass, "CycleCount")
+
+        pXmlClass = AddItem(pSystemInfo, "MSFT_StorageReliabilityCounter")
+        AddAttribute(pXmlClass, "Wear")
+        AddAttribute(pXmlClass, "Temperature")
+        AddAttribute(pXmlClass, "PowerOnHours")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_UserAccount")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "Disabled")
+
+        pXmlClass = AddItem(pSystemInfo, "LocalAdministrators")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "Type")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_UserProfile")
+        AddAttribute(pXmlClass, "LocalPath")
+        AddAttribute(pXmlClass, "Loaded")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_DeviceGuard")
+        AddAttribute(pXmlClass, "VirtualizationBasedSecurityStatus")
+        AddAttribute(pXmlClass, "SecurityServicesRunning")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_Share")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "Path")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_StartupCommand")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "Command")
+
+        pXmlClass = AddItem(pSystemInfo, "ThirdPartyServices")
+        AddAttribute(pXmlClass, "ServiceName")
+        AddAttribute(pXmlClass, "State")
+        AddAttribute(pXmlClass, "StartMode")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_PnPSignedDriver")
+        AddAttribute(pXmlClass, "DeviceName")
+        AddAttribute(pXmlClass, "DriverVersion")
+        AddAttribute(pXmlClass, "DriverDate")
+
+        pXmlClass = AddItem(pSystemInfo, "OfficeClickToRun")
+        AddAttribute(pXmlClass, "ProductReleaseIds")
+        AddAttribute(pXmlClass, "Version")
+        AddAttribute(pXmlClass, "UpdateChannel")
+
+        pXmlClass = AddItem(pSystemInfo, "Windows11Readiness")
+        AddAttribute(pXmlClass, "Result")
+
         Return pXmlDocument
     End Function
     Public Function [Resume]() As XmlDocument
@@ -444,7 +561,6 @@ Module modConfigurations
         AddAttribute(pXmlClass, "Name")
         AddAttribute(pXmlClass, "ReleaseDate")
         AddAttribute(pXmlClass, "SerialNumber")
-        AddAttribute(pXmlClass, "ReleaseDate")
         AddAttribute(pXmlClass, "SMBIOSBIOSVersion")
         AddAttribute(pXmlClass, "SMBIOSMajorVersion")
         AddAttribute(pXmlClass, "SMBIOSMinorVersion")
@@ -504,6 +620,8 @@ Module modConfigurations
         AddAttribute(pXmlClass, "SystemType")
         AddAttribute(pXmlClass, "ThermalState")
         AddAttribute(pXmlClass, "TotalPhysicalMemory")
+        AddAttribute(pXmlClass, "UserName")
+        AddAttribute(pXmlClass, "HypervisorPresent")
         AddAttribute(pXmlClass, "Workgroup")
 
         pXmlClass = AddItem(pSystemInfo, "Win32_ComputerSystemProduct")
@@ -580,7 +698,6 @@ Module modConfigurations
         AddAttribute(pXmlClass, "EndingAddress")
         AddAttribute(pXmlClass, "Name")
         AddAttribute(pXmlClass, "StartingAddress")
-        AddAttribute(pXmlClass, "VolumeSerialNumber")
 
         'pXmlClass = AddItem(pSystemInfo, "Win32_MotherboardDevice")
         'AddItem(pXmlClass, "Description")
@@ -597,6 +714,7 @@ Module modConfigurations
 
         pXmlClass = AddItem(pSystemInfo, "Win32_OperatingSystem")
         AddAttribute(pXmlClass, "BuildNumber")
+        AddAttribute(pXmlClass, "LastBootUpTime")
         AddAttribute(pXmlClass, "BuildType")
         AddAttribute(pXmlClass, "CSDVersion")
         AddAttribute(pXmlClass, "EncryptionLevel")
@@ -622,7 +740,9 @@ Module modConfigurations
         AddAttribute(pXmlClass, "MemoryType")
         AddAttribute(pXmlClass, "PartNumber")
         AddAttribute(pXmlClass, "SerialNumber")
-        AddAttribute(pXmlClass, "Spedd")
+        AddAttribute(pXmlClass, "Speed")
+        AddAttribute(pXmlClass, "SMBIOSMemoryType")
+        AddAttribute(pXmlClass, "DeviceLocator")
         AddAttribute(pXmlClass, "TotalWidth")
         AddAttribute(pXmlClass, "TypeDetail")
 
@@ -783,6 +903,178 @@ Module modConfigurations
         AddAttribute(pXmlClass, "Name")
         AddAttribute(pXmlClass, "SerialNumber")
 
+        pXmlClass = AddItem(pSystemInfo, "Win32_PhysicalMemoryArray")
+        AddAttribute(pXmlClass, "Location")
+        AddAttribute(pXmlClass, "MemoryDevices")
+        AddAttribute(pXmlClass, "MaxCapacityEx")
+        AddAttribute(pXmlClass, "MemoryErrorCorrection")
+        AddAttribute(pXmlClass, "Use")
+
+        pXmlClass = AddItem(pSystemInfo, "MSFT_PhysicalDisk")
+        AddAttribute(pXmlClass, "FriendlyName")
+        AddAttribute(pXmlClass, "MediaType")
+        AddAttribute(pXmlClass, "BusType")
+        AddAttribute(pXmlClass, "HealthStatus")
+        AddAttribute(pXmlClass, "OperationalStatus")
+        AddAttribute(pXmlClass, "Size")
+        AddAttribute(pXmlClass, "FirmwareVersion")
+        AddAttribute(pXmlClass, "SerialNumber")
+
+        pXmlClass = AddItem(pSystemInfo, "WindowsRelease")
+        AddAttribute(pXmlClass, "Caption")
+        AddAttribute(pXmlClass, "DisplayVersion")
+        AddAttribute(pXmlClass, "Build")
+        AddAttribute(pXmlClass, "Edition")
+        AddAttribute(pXmlClass, "InstallationType")
+
+        pXmlClass = AddItem(pSystemInfo, "SoftwareLicensingProduct")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "Description")
+        AddAttribute(pXmlClass, "LicenseStatus")
+        AddAttribute(pXmlClass, "PartialProductKey")
+
+        pXmlClass = AddItem(pSystemInfo, "BootSecurity")
+        AddAttribute(pXmlClass, "FirmwareType")
+        AddAttribute(pXmlClass, "SecureBoot")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_Tpm")
+        AddAttribute(pXmlClass, "SpecVersion")
+        AddAttribute(pXmlClass, "IsEnabled_InitialValue")
+        AddAttribute(pXmlClass, "IsActivated_InitialValue")
+        AddAttribute(pXmlClass, "IsOwned_InitialValue")
+        AddAttribute(pXmlClass, "ManufacturerIdTxt")
+        AddAttribute(pXmlClass, "ManufacturerVersion")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_EncryptableVolume")
+        AddAttribute(pXmlClass, "DriveLetter")
+        AddAttribute(pXmlClass, "ProtectionStatus")
+
+        pXmlClass = AddItem(pSystemInfo, "AntiVirusProduct")
+        AddAttribute(pXmlClass, "displayName")
+        AddAttribute(pXmlClass, "pathToSignedProductExe")
+
+        pXmlClass = AddItem(pSystemInfo, "MSFT_MpComputerStatus")
+        AddAttribute(pXmlClass, "AMServiceEnabled")
+        AddAttribute(pXmlClass, "AntivirusEnabled")
+        AddAttribute(pXmlClass, "RealTimeProtectionEnabled")
+        AddAttribute(pXmlClass, "AMProductVersion")
+        AddAttribute(pXmlClass, "AntivirusSignatureAge")
+        AddAttribute(pXmlClass, "AntivirusSignatureLastUpdated")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_QuickFixEngineering")
+        AddAttribute(pXmlClass, "HotFixID")
+        AddAttribute(pXmlClass, "Description")
+        AddAttribute(pXmlClass, "InstalledBy")
+        AddAttribute(pXmlClass, "InstalledOn")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_PnPEntity")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "DeviceID")
+        AddAttribute(pXmlClass, "PNPClass")
+        AddAttribute(pXmlClass, "ConfigManagerErrorCode")
+
+        pXmlClass = AddItem(pSystemInfo, "InstalledSoftware")
+        AddAttribute(pXmlClass, "DisplayName")
+        AddAttribute(pXmlClass, "DisplayVersion")
+        AddAttribute(pXmlClass, "Publisher")
+        AddAttribute(pXmlClass, "InstallDate")
+        AddAttribute(pXmlClass, "EstimatedSizeKB")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_NetworkAdapterConfiguration")
+        AddAttribute(pXmlClass, "Description")
+        AddAttribute(pXmlClass, "IPAddress")
+        AddAttribute(pXmlClass, "IPSubnet")
+        AddAttribute(pXmlClass, "DefaultIPGateway")
+        AddAttribute(pXmlClass, "DNSServerSearchOrder")
+        AddAttribute(pXmlClass, "DHCPEnabled")
+        AddAttribute(pXmlClass, "DHCPServer")
+        AddAttribute(pXmlClass, "MACAddress")
+
+        pXmlClass = AddItem(pSystemInfo, "BatteryHealth")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "DesignCapacity")
+        AddAttribute(pXmlClass, "FullChargedCapacity")
+        AddAttribute(pXmlClass, "HealthPercent")
+        AddAttribute(pXmlClass, "CycleCount")
+
+        pXmlClass = AddItem(pSystemInfo, "MSFT_StorageReliabilityCounter")
+        AddAttribute(pXmlClass, "Wear")
+        AddAttribute(pXmlClass, "Temperature")
+        AddAttribute(pXmlClass, "PowerOnHours")
+        AddAttribute(pXmlClass, "ReadErrorsUncorrected")
+        AddAttribute(pXmlClass, "WriteErrorsUncorrected")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_UserAccount")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "Disabled")
+        AddAttribute(pXmlClass, "Lockout")
+        AddAttribute(pXmlClass, "PasswordRequired")
+        AddAttribute(pXmlClass, "PasswordExpires")
+
+        pXmlClass = AddItem(pSystemInfo, "LocalAdministrators")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "Type")
+        AddAttribute(pXmlClass, "Disabled")
+        AddAttribute(pXmlClass, "SID")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_UserProfile")
+        AddAttribute(pXmlClass, "LocalPath")
+        AddAttribute(pXmlClass, "Loaded")
+        AddAttribute(pXmlClass, "LastUseTime")
+        AddAttribute(pXmlClass, "SID")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_DeviceGuard")
+        AddAttribute(pXmlClass, "VirtualizationBasedSecurityStatus")
+        AddAttribute(pXmlClass, "SecurityServicesConfigured")
+        AddAttribute(pXmlClass, "SecurityServicesRunning")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_Share")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "Path")
+        AddAttribute(pXmlClass, "Description")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_StartupCommand")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "Command")
+        AddAttribute(pXmlClass, "Location")
+        AddAttribute(pXmlClass, "User")
+
+        pXmlClass = AddItem(pSystemInfo, "ThirdPartyServices")
+        AddAttribute(pXmlClass, "ServiceName")
+        AddAttribute(pXmlClass, "DisplayName")
+        AddAttribute(pXmlClass, "State")
+        AddAttribute(pXmlClass, "StartMode")
+        AddAttribute(pXmlClass, "Account")
+        AddAttribute(pXmlClass, "Path")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_PnPSignedDriver")
+        AddAttribute(pXmlClass, "DeviceName")
+        AddAttribute(pXmlClass, "DeviceClass")
+        AddAttribute(pXmlClass, "DriverVersion")
+        AddAttribute(pXmlClass, "DriverDate")
+        AddAttribute(pXmlClass, "DriverProviderName")
+
+        pXmlClass = AddItem(pSystemInfo, "OfficeClickToRun")
+        AddAttribute(pXmlClass, "ProductReleaseIds")
+        AddAttribute(pXmlClass, "Version")
+        AddAttribute(pXmlClass, "Platform")
+        AddAttribute(pXmlClass, "UpdateChannel")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_PageFileUsage")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "AllocatedBaseSize")
+        AddAttribute(pXmlClass, "CurrentUsage")
+        AddAttribute(pXmlClass, "PeakUsage")
+
+        pXmlClass = AddItem(pSystemInfo, "Windows11Readiness")
+        AddAttribute(pXmlClass, "Result")
+        AddAttribute(pXmlClass, "Memory")
+        AddAttribute(pXmlClass, "Storage")
+        AddAttribute(pXmlClass, "Processor")
+        AddAttribute(pXmlClass, "ProcessorModel")
+        AddAttribute(pXmlClass, "Firmware")
+        AddAttribute(pXmlClass, "TPM")
+
         Return pXmlDocument
     End Function
     Public Function Complete() As XmlDocument
@@ -846,6 +1138,33 @@ Module modConfigurations
         pXmlClass = AddItem(pSystemInfo, "Win32_VideoController")
         pXmlClass = AddItem(pSystemInfo, "Win32_VoltageProbe")
         pXmlClass = AddItem(pSystemInfo, "Win32_Volume")
+
+        pXmlClass = AddItem(pSystemInfo, "Win32_PhysicalMemoryArray")
+        pXmlClass = AddItem(pSystemInfo, "MSFT_PhysicalDisk")
+        pXmlClass = AddItem(pSystemInfo, "WindowsRelease")
+        pXmlClass = AddItem(pSystemInfo, "SoftwareLicensingProduct")
+        pXmlClass = AddItem(pSystemInfo, "BootSecurity")
+        pXmlClass = AddItem(pSystemInfo, "Win32_Tpm")
+        pXmlClass = AddItem(pSystemInfo, "Win32_EncryptableVolume")
+        pXmlClass = AddItem(pSystemInfo, "AntiVirusProduct")
+        pXmlClass = AddItem(pSystemInfo, "MSFT_MpComputerStatus")
+        pXmlClass = AddItem(pSystemInfo, "Win32_QuickFixEngineering")
+        pXmlClass = AddItem(pSystemInfo, "Win32_PnPEntity")
+        pXmlClass = AddItem(pSystemInfo, "InstalledSoftware")
+
+        pXmlClass = AddItem(pSystemInfo, "BatteryHealth")
+        pXmlClass = AddItem(pSystemInfo, "MSFT_StorageReliabilityCounter")
+        pXmlClass = AddItem(pSystemInfo, "Win32_UserAccount")
+        pXmlClass = AddItem(pSystemInfo, "LocalAdministrators")
+        pXmlClass = AddItem(pSystemInfo, "Win32_UserProfile")
+        pXmlClass = AddItem(pSystemInfo, "Win32_DeviceGuard")
+        pXmlClass = AddItem(pSystemInfo, "Win32_Share")
+        pXmlClass = AddItem(pSystemInfo, "Win32_StartupCommand")
+        pXmlClass = AddItem(pSystemInfo, "ThirdPartyServices")
+        pXmlClass = AddItem(pSystemInfo, "Win32_PnPSignedDriver")
+        pXmlClass = AddItem(pSystemInfo, "OfficeClickToRun")
+        pXmlClass = AddItem(pSystemInfo, "Win32_PageFileUsage")
+        pXmlClass = AddItem(pSystemInfo, "Windows11Readiness")
 
         Return pXmlDocument
     End Function

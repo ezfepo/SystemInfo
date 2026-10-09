@@ -10,16 +10,64 @@ Public Class WMINamespace
     Private _XmlNamespace As XmlDocument
     Private _ProcessDate As DateTime
     Private _FileName As String
+    Private _Target As RemoteTarget
+    Private _Scope As ManagementScope
+    Private _ComputerName As String = String.Empty
 
     Public Event DoCancel(ByRef pCancel As Boolean)
 
-    Public Sub New(ByVal pXmlNamespace As Object)
+    Public Sub New(ByVal pRequest As SystemInfoRequest)
         _ProcessDate = Now
         _Name = "root\CIMV2"
 
-        _XmlNamespace = TryCast(pXmlNamespace, XmlDocument)
+        _Target = pRequest.Target
+        _XmlNamespace = pRequest.Configuration
         If Not _XmlNamespace Is Nothing Then Console.WriteLine(_Name + " Classes not loaded")
     End Sub
+    Friend ReadOnly Property Target() As RemoteTarget
+        Get
+            Return _Target
+        End Get
+    End Property
+    ''' <summary>Connected scope shared by every class; only valid after <see cref="Connect"/>.</summary>
+    Friend ReadOnly Property Scope() As ManagementScope
+        Get
+            Return _Scope
+        End Get
+    End Property
+
+    Private ReadOnly _OtherScopes As New Dictionary(Of String, ManagementScope)(StringComparer.OrdinalIgnoreCase)
+    Private ReadOnly _UnavailableNamespaces As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+
+    ''' <summary>
+    ''' Connected scope for a WMI namespace of the target computer, or Nothing when it can't be opened (the
+    ''' namespace does not exist on this Windows edition, access is denied...). A failure is remembered, so
+    ''' the other classes of that namespace don't try again.
+    ''' </summary>
+    Friend Function GetScope(ByVal pNamespacePath As String) As ManagementScope
+        If String.Equals(pNamespacePath, _Name, StringComparison.OrdinalIgnoreCase) Then Return _Scope
+
+        Dim oScope As ManagementScope = Nothing
+        If _OtherScopes.TryGetValue(pNamespacePath, oScope) Then Return oScope
+        If _UnavailableNamespaces.Contains(pNamespacePath) Then Return Nothing
+
+        Try
+            oScope = _Target.CreateScope(pNamespacePath)
+            oScope.Connect()
+            _OtherScopes(pNamespacePath) = oScope
+            Return oScope
+        Catch ex As Exception
+            Console.WriteLine("WMI namespace not available: " + pNamespacePath + " (" + ex.Message.Trim() + ")")
+            _UnavailableNamespaces.Add(pNamespacePath)
+            Return Nothing
+        End Try
+    End Function
+    ''' <summary>Real name of the computer being queried; only valid after <see cref="Connect"/>.</summary>
+    Public ReadOnly Property ComputerName() As String
+        Get
+            Return If(String.IsNullOrEmpty(_ComputerName), Environment.MachineName, _ComputerName)
+        End Get
+    End Property
     Public ReadOnly Property Cancel() As Boolean
         Get
             Dim oDoCancel As Boolean
@@ -43,9 +91,26 @@ Public Class WMINamespace
             oFriendlyName = oFriendlyName.Replace(".exe", String.Empty)
             Dim oFolder As String = AppConfiguration.OutputFolder
             If Not oFolder.EndsWith(IO.Path.DirectorySeparatorChar) Then oFolder += IO.Path.DirectorySeparatorChar
-            Return oFolder + oFriendlyName + "." + System.Environment.MachineName + "." + _ProcessDate.ToString("yyyyMMdd hhmmss") + ".xml"
+            Return oFolder + oFriendlyName + "." + Me.ComputerName + "." + _ProcessDate.ToString("yyyyMMdd HHmmss") + ".xml"
         End Get
     End Property
+
+    ''' <summary>Opens the WMI connection once (local or remote); throws if the computer can't be queried.</summary>
+    Public Sub Connect()
+        _Target.EnsureReachable()
+        _Scope = _Target.CreateScope(_Name)
+        _Scope.Connect()
+
+        Dim oQuery As New ObjectQuery("SELECT Name FROM Win32_ComputerSystem")
+        Using oSearcher As New ManagementObjectSearcher(_Scope, oQuery)
+            For Each oObject As ManagementObject In oSearcher.Get
+                Using oObject
+                    _ComputerName = CStr(oObject("Name"))
+                End Using
+                Exit For
+            Next
+        End Using
+    End Sub
 
     Public Sub Load()
         For Each oChild As Object In _XmlNamespace.DocumentElement.ChildNodes
@@ -62,11 +127,26 @@ Public Class WMINamespace
     Public Sub Save()
         If Not _XmlNamespace Is Nothing Then
             Try
+                SortClasses(_XmlNamespace.DocumentElement)
                 _XmlNamespace.Save(Me.FileName)
             Catch ex As Exception
                 Console.WriteLine("FileName: " + Me.FileName + Environment.NewLine + ex.ToString)
             End Try
         End If
+    End Sub
+
+    ''' <summary>Puts the classes of the report in alphabetical order of the name the viewer shows.</summary>
+    Private Shared Sub SortClasses(ByVal pRoot As XmlElement)
+        Dim oClasses As New List(Of XmlElement)
+        For Each oChild As XmlNode In pRoot.ChildNodes
+            Dim oXmlClass As XmlElement = TryCast(oChild, XmlElement)
+            If Not oXmlClass Is Nothing Then oClasses.Add(oXmlClass)
+        Next
+
+        Dim oSorted As List(Of XmlElement) = oClasses.OrderBy(Function(c) WMIClassSources.DisplayName(c.Name), StringComparer.OrdinalIgnoreCase).ToList()
+        For Each oXmlClass As XmlElement In oSorted
+            pRoot.AppendChild(oXmlClass) 'moves it to the end, so the loop leaves them in order
+        Next
     End Sub
 End Class
 
@@ -100,7 +180,7 @@ Public Class WMIClass
         If Me.Name = "Win32_Monitor" Then
 
             Try
-                Dim oMonitors As List(Of WMIExtMonitor) = WMIExtMonitor.GetMonitors
+                Dim oMonitors As List(Of WMIExtMonitor) = WMIExtMonitor.GetMonitors(_WMINamespace.Target)
                 For Each oMonitor As WMIExtMonitor In oMonitors
                     If _WMINamespace.Cancel Then Exit For
 
@@ -116,17 +196,39 @@ Public Class WMIClass
             End Try
 
         Else
-            Dim oManagementObjectSearcher As ManagementObjectSearcher
-            Dim oManagementScope As ManagementScope
-            Dim oobjectquery As ObjectQuery
-            Dim queryString As String = "SELECT * FROM " + Me.Name
+            Dim oSource As WMIClassSource = WMIClassSources.Find(Me.Name)
+            If Not oSource.Reader Is Nothing Then
+                LoadFromReader(oSource)
+            Else
+                LoadFromWmi(oSource)
+            End If
+        End If
+    End Sub
 
-            Try
-                oManagementScope = New ManagementScope(_WMINamespace.Name)
-                oManagementScope.Connect()
-                oobjectquery = New ObjectQuery(queryString)
-                oManagementObjectSearcher = New ManagementObjectSearcher(oManagementScope, oobjectquery)
+    ''' <summary>Classes that are not a WMI query (installed programs, Windows release, Secure Boot).</summary>
+    Private Sub LoadFromReader(ByVal pSource As WMIClassSource)
+        Try
+            For Each oObject As SyntheticObject In pSource.Reader(_WMINamespace.Target, Function() _WMINamespace.Cancel)
+                If _WMINamespace.Cancel Then Exit For
+                MyBase.Add(New WMIManagementObject(Me, oObject))
+            Next
+        Catch ex As Exception
+            Console.WriteLine(Me.Name + ": " + Environment.NewLine + ex.ToString)
+        End Try
+    End Sub
 
+    Private Sub LoadFromWmi(ByVal pSource As WMIClassSource)
+        Dim oManagementScope As ManagementScope = _WMINamespace.GetScope(pSource.NamespacePath)
+        If oManagementScope Is Nothing Then Exit Sub 'namespace not available on this computer
+
+        Dim queryString As String = "SELECT * FROM " + Me.Name
+        If Not String.IsNullOrEmpty(pSource.Filter) Then queryString += " WHERE " + pSource.Filter
+
+        Try
+            Dim oEnumerationOptions As New EnumerationOptions
+            oEnumerationOptions.Timeout = TimeSpan.FromSeconds(60)
+
+            Using oManagementObjectSearcher As New ManagementObjectSearcher(oManagementScope, New ObjectQuery(queryString), oEnumerationOptions)
                 For Each oManagementObject As ManagementObject In oManagementObjectSearcher.Get
                     If _WMINamespace.Cancel Then Exit For
 
@@ -136,12 +238,24 @@ Public Class WMIClass
                         Console.WriteLine("ManagementObject: " + oManagementObject.Path.RelativePath + Environment.NewLine + ex.ToString)
                     End Try
                 Next
+            End Using
 
-            Catch ex As Exception
-                Console.WriteLine("QueryString: " + queryString + Environment.NewLine + ex.ToString)
-            End Try
-        End If
+        Catch ex As ManagementException When IsNotAvailable(ex)
+            'Normal on some computers: the class is missing on this Windows edition, or needs administrator rights (TPM, BitLocker)
+            Console.WriteLine(Me.Name + " not available: " + ex.Message.Trim())
+        Catch ex As Exception
+            Console.WriteLine("QueryString: " + queryString + Environment.NewLine + ex.ToString)
+        End Try
     End Sub
+
+    Private Shared Function IsNotAvailable(ByVal pException As ManagementException) As Boolean
+        Select Case pException.ErrorCode
+            Case ManagementStatus.InvalidNamespace, ManagementStatus.InvalidClass, ManagementStatus.NotFound, ManagementStatus.AccessDenied
+                Return True
+            Case Else
+                Return False
+        End Select
+    End Function
 End Class
 
 Public Class WMIManagementObject
@@ -150,8 +264,16 @@ Public Class WMIManagementObject
     Private _WMIClass As WMIClass
     Private _ManagementObject As ManagementObject
     Private _Monitor As WMIExtMonitor
+    Private _Synthetic As SyntheticObject
     Private _XmlManagementObject As XmlElement
 
+    Friend Sub New(ByRef pWMIClass As WMIClass, ByVal pSynthetic As SyntheticObject)
+        _WMIClass = pWMIClass
+        _Synthetic = pSynthetic
+
+        _XmlManagementObject = _WMIClass.XmlClass.OwnerDocument.CreateElement("Object")
+        _WMIClass.XmlClass.AppendChild(_XmlManagementObject)
+    End Sub
     Public Sub New(ByRef pWMIClass As WMIClass, ByVal pMonitor As WMIExtMonitor)
         _WMIClass = pWMIClass
         _Monitor = pMonitor
@@ -177,6 +299,8 @@ Public Class WMIManagementObject
                 Return _Monitor.FullName
             ElseIf Not _ManagementObject Is Nothing Then
                 Return _ManagementObject.Path.RelativePath
+            ElseIf Not _Synthetic Is Nothing Then
+                Return _Synthetic.Name
             Else
                 Throw New NotImplementedException
             End If
@@ -200,6 +324,12 @@ Public Class WMIManagementObject
             MyBase.Add(New WMIPropertyData(Me, "ProductID", _Monitor.ProductID))
             MyBase.Add(New WMIPropertyData(Me, "Serial", _Monitor.Serial))
             MyBase.Add(New WMIPropertyData(Me, "SerialNumber", _Monitor.SerialNumber))
+
+        ElseIf Not _Synthetic Is Nothing Then
+
+            For Each oProperty As KeyValuePair(Of String, String) In _Synthetic.Properties
+                MyBase.Add(New WMIPropertyData(Me, oProperty.Key, oProperty.Value))
+            Next
 
         ElseIf Not _ManagementObject Is Nothing Then
 
@@ -272,11 +402,34 @@ Public Class WMIPropertyData
 
     Public Sub Load()
         Try
-            _WMIManagementObject.XmlManagementObject.SetAttribute(Me.Name, Me.Value)
+            _WMIManagementObject.XmlManagementObject.SetAttribute(Me.Name, RemoveInvalidXmlChars(Me.Value))
         Catch ex As Exception
             Console.WriteLine("PropertyData: " + Me.Name + Environment.NewLine + ex.ToString)
         End Try
     End Sub
+
+    ''' <summary>
+    ''' Drops the characters XML 1.0 can't represent (for example control characters in a USB stick's
+    ''' serial number). XmlDocument writes them as character references that it then refuses to load,
+    ''' which would leave a saved report unreadable.
+    ''' </summary>
+    Friend Shared Function RemoveInvalidXmlChars(ByVal pValue As String) As String
+        If String.IsNullOrEmpty(pValue) Then Return pValue
+
+        Dim oResult As New StringBuilder(pValue.Length)
+        Dim i As Integer = 0
+        While i < pValue.Length
+            Dim oChar As Char = pValue(i)
+            If Char.IsHighSurrogate(oChar) AndAlso i + 1 < pValue.Length AndAlso Char.IsLowSurrogate(pValue(i + 1)) Then
+                oResult.Append(oChar).Append(pValue(i + 1)) 'valid surrogate pair
+                i += 2
+                Continue While
+            End If
+            If XmlConvert.IsXmlChar(oChar) Then oResult.Append(oChar)
+            i += 1
+        End While
+        Return oResult.ToString()
+    End Function
 
     Private Function PropertyDataToString() As String
         Dim pValueArray As System.Array = CType(_PropertyData.Value, System.Array)
@@ -298,7 +451,26 @@ Public Class WMIViewer
     Private _XmlSystemInfo As XmlDocument
     Private _XmlConfigurationType As XmlDocument
     Private _FileName As String
+    Private _FilePath As String
     Private _ConfigurationType As ConfigurationTypeEnum
+
+    Public ReadOnly Property IsLoaded() As Boolean
+        Get
+            Return Not _XmlSystemInfo Is Nothing
+        End Get
+    End Property
+    Public ReadOnly Property FilePath() As String
+        Get
+            Return _FilePath
+        End Get
+    End Property
+    ''' <summary>Name of the computer the loaded report belongs to (falls back to the file name).</summary>
+    Public ReadOnly Property ComputerName() As String
+        Get
+            Dim oName As String = GetXMLClassResume("ComputerSystem", "Name").Trim()
+            Return If(String.IsNullOrEmpty(oName), _FileName, oName)
+        End Get
+    End Property
 
     Public Property ConfigurationType() As ConfigurationTypeEnum
         Get
@@ -320,31 +492,41 @@ Public Class WMIViewer
         Try
             Dim oFileInfo As New IO.FileInfo(pFileName)
             If oFileInfo.Exists Then
-                _XmlSystemInfo = New XmlDocument
-                _XmlSystemInfo.Load(pFileName)
-                pLoaded = _XmlSystemInfo.DocumentElement.Name = "SystemInfo"
-                If pLoaded Then _FileName = oFileInfo.Name
+                Dim oXmlSystemInfo As New XmlDocument
+                oXmlSystemInfo.Load(pFileName)
+                pLoaded = oXmlSystemInfo.DocumentElement.Name = "SystemInfo"
+                If pLoaded Then
+                    _XmlSystemInfo = oXmlSystemInfo
+                    _FileName = oFileInfo.Name
+                    _FilePath = oFileInfo.FullName
+                End If
             End If
         Catch ex As Exception
         End Try
         Return pLoaded
     End Function
-    Public Sub Fill(ByRef tvw As TreeView)
+    Public Sub Fill(ByRef tvw As TreeView, Optional ByVal pFilter As String = "")
         tvw.Nodes.Clear()
-        Dim oNodeRoot As TreeNode = tvw.Nodes.Add("root", _FileName)
+        Dim oNodeRoot As TreeNode = tvw.Nodes.Add("root", Me.ComputerName)
 
+        Dim oTreeNodes As New List(Of TreeNode)
         For Each oChild As Object In _XmlConfigurationType.DocumentElement.ChildNodes
             Dim oXmlClass As XmlElement = TryCast(oChild, XmlElement)
-            If Not oXmlClass Is Nothing Then
+            If Not oXmlClass Is Nothing AndAlso Matches(oXmlClass.Name, pFilter) Then
                 Dim oXmlSystemInfoNode As XmlNode = _XmlSystemInfo.DocumentElement.SelectSingleNode(oXmlClass.Name)
                 If Not oXmlSystemInfoNode Is Nothing Then
                     If oXmlSystemInfoNode.HasChildNodes Then
-                        Dim oTreeNode As TreeNode = oNodeRoot.Nodes.Add(oXmlClass.Name, oXmlClass.Name.Replace("Win32_", "") + " (" + oXmlSystemInfoNode.ChildNodes.Count.ToString + ")")
+                        Dim oTreeNode As New TreeNode(WMIClassSources.DisplayName(oXmlClass.Name) + " (" + oXmlSystemInfoNode.ChildNodes.Count.ToString + ")")
+                        oTreeNode.Name = oXmlClass.Name
                         oTreeNode.Tag = oXmlSystemInfoNode
+                        oTreeNodes.Add(oTreeNode)
                     End If
                 End If
             End If
         Next
+
+        'Alphabetical, so reports saved before the file itself was sorted look the same
+        oNodeRoot.Nodes.AddRange(oTreeNodes.OrderBy(Function(n) WMIClassSources.DisplayName(n.Name), StringComparer.OrdinalIgnoreCase).ToArray())
 
         'For Each oChild As Object In _XmlSystemInfo.DocumentElement.ChildNodes
         '    Dim oXmlElement As XmlElement = TryCast(oChild, XmlElement)
@@ -355,11 +537,32 @@ Public Class WMIViewer
 
         oNodeRoot.ExpandAll()
     End Sub
-    Public Sub Fill(ByRef lvw As ListView, ByRef oTreeNode As TreeNode)
-        If oTreeNode.Tag Is Nothing Then Exit Sub
+    Public Sub Fill(ByRef lvw As ListView, ByRef oTreeNode As TreeNode, Optional ByVal pFilter As String = "")
+        lvw.BeginUpdate()
+        Try
+            FillProperties(lvw, oTreeNode, pFilter)
 
+            'Drop the groups the filter left empty
+            Dim oEmptyGroups As New List(Of ListViewGroup)
+            For Each oGroup As ListViewGroup In lvw.Groups
+                If oGroup.Items.Count = 0 Then oEmptyGroups.Add(oGroup)
+            Next
+            For Each oGroup As ListViewGroup In oEmptyGroups
+                lvw.Groups.Remove(oGroup)
+            Next
+        Finally
+            lvw.EndUpdate()
+        End Try
+    End Sub
+    Private Shared Function Matches(ByVal pText As String, ByVal pFilter As String) As Boolean
+        If String.IsNullOrWhiteSpace(pFilter) Then Return True
+        Return pText.IndexOf(pFilter.Trim(), StringComparison.OrdinalIgnoreCase) >= 0
+    End Function
+    Private Sub FillProperties(ByVal lvw As ListView, ByVal oTreeNode As TreeNode, ByVal pFilter As String)
         lvw.Items.Clear()
         lvw.Groups.Clear()
+        If oTreeNode Is Nothing OrElse oTreeNode.Tag Is Nothing Then Exit Sub
+
         lvw.ShowGroups = True
 
         Dim oXmlSystemInfoElement As XmlElement = TryCast(oTreeNode.Tag, XmlElement)
@@ -370,23 +573,22 @@ Public Class WMIViewer
                 Dim oXmlChild As XmlElement = TryCast(oChild, XmlElement)
                 If Not oXmlChild Is Nothing Then
 
-                    Dim oListViewGroup As ListViewGroup = lvw.Groups.Add(oXmlChild.Name + " " + lvw.Groups.Count.ToString, oXmlChild.Name + " " + lvw.Groups.Count.ToString)
+                    Dim oGroupName As String = WMIClassSources.DisplayName(oXmlClass.Name) + " " +(lvw.Groups.Count + 1).ToString
+                    Dim oListViewGroup As ListViewGroup = lvw.Groups.Add(oGroupName, oGroupName)
 
                     If oXmlClass.Attributes.Count = 0 Then
                         For Each oXmlAttribute As XmlAttribute In oXmlChild.Attributes
-                            Fill(lvw, oXmlAttribute, oListViewGroup, oXmlClass.Name)
+                            Fill(lvw, oXmlAttribute, oListViewGroup, oXmlClass.Name, pFilter)
                         Next
                     Else
                         For Each oXmlAttribute As XmlAttribute In oXmlClass.Attributes
                             Dim oXmlChildAttribute As XmlAttribute = oXmlChild.GetAttributeNode(oXmlAttribute.Name)
-                            If Not oXmlChildAttribute Is Nothing Then Fill(lvw, oXmlChildAttribute, oListViewGroup, oXmlClass.Name)
+                            If Not oXmlChildAttribute Is Nothing Then Fill(lvw, oXmlChildAttribute, oListViewGroup, oXmlClass.Name, pFilter)
                         Next
                     End If
                 End If
             Next
         End If
-
-        lvw.ShowGroups = True
     End Sub
     Public Function [Resume]() As String
         Dim oResume As String = String.Empty
@@ -394,26 +596,52 @@ Public Class WMIViewer
         oResume += GetXMLClassResume("SystemEnclosure", "ChassisTypes") + " " + GetXMLClassResume("ComputerSystem", "Name") + " " + GetXMLClassResume("ComputerSystem", "SystemType") + Environment.NewLine
         oResume += GetXMLClassResume("ComputerSystem", "Manufacturer", "SystemFamily", "SystemSKUNumber") + Environment.NewLine
         oResume += "Motherboard: " + GetXMLClassResume("BaseBoard", "Manufacturer", "Product", "Version") + Environment.NewLine
-        oResume += "CPU: " + GetXMLClassResume("Processor", "Manufacturer", "Architecture", "Name", "Description", "NunberOfCores", "MaxClockSpeed", "NumberOfLogicalProcessors", "SocketDesignation") + Environment.NewLine
+        oResume += "CPU: " + GetXMLClassResume("Processor", "Manufacturer", "Architecture", "Name", "Description", "NumberOfCores", "MaxClockSpeed", "NumberOfLogicalProcessors", "SocketDesignation") + Environment.NewLine
         oResume += "Cache: " + GetXMLClassResume("CacheMemory", "Level", "CacheType", "Purpose", "InstalledSize") + Environment.NewLine
-        oResume += "RAM: " + GetXMLClassResume("PhysicalMemory", "Manufacturer", "FormFactor", "Capacity", "Speed", "MinVoltage", "PartNumber") + Environment.NewLine
-        oResume += "Video: " + GetXMLClassResume("VideoController", "AdapterRAM", "Name", "AdapterDACType", "VideoArcuitecture") + Environment.NewLine
+        oResume += "RAM: " + GetXMLClassResume("PhysicalMemory", "Manufacturer", "SMBIOSMemoryType", "FormFactor", "Capacity", "Speed", "MinVoltage", "PartNumber") + Environment.NewLine
+        oResume += "Video: " + GetXMLClassResume("VideoController", "AdapterRAM", "Name", "AdapterDACType", "VideoArchitecture") + Environment.NewLine
         oResume += "HD: " + GetXMLClassResume("DiskDrive", "InterfaceType", "Model", "Size") + Environment.NewLine
         oResume += "CD/DVD: " + GetXMLClassResume("CDROMDrive", "Name", "MediaType") + Environment.NewLine
 
+        'Newer data points: only the lines the report has data for (TPM and BitLocker need administrator rights)
+        Dim oSlots As String = GetXMLClassResume("PhysicalMemoryArray", "MemoryDevices")
+        Dim oMaxRam As String = GetXMLClassResume("PhysicalMemoryArray", "MaxCapacityEx")
+        If oSlots.Length > 0 Then oResume += "RAM slots: " + oSlots + If(oMaxRam.Length > 0, " (maximum " + oMaxRam + ")", String.Empty) + Environment.NewLine
+        oResume += SummaryLine("Storage: ", GetXMLClassResume("MSFT_PhysicalDisk", "FriendlyName", "MediaType", "BusType", "Size", "HealthStatus"))
+        oResume += SummaryLine("Windows: ", GetXMLClassResume("WindowsRelease", "Caption", "DisplayVersion", "Build"))
+        oResume += SummaryLine("Activation: ", GetXMLClassResume("SoftwareLicensingProduct", "LicenseStatus"))
+        oResume += SummaryLine("Firmware: ", GetXMLClassResume("BootSecurity", "FirmwareType") + If(GetXMLClassResume("BootSecurity", "SecureBoot").Length > 0, ", Secure Boot " + GetXMLClassResume("BootSecurity", "SecureBoot"), String.Empty))
+        oResume += SummaryLine("TPM: ", GetXMLClassResume("Win32_Tpm", "SpecVersion"))
+        oResume += SummaryLine("BitLocker: ", GetXMLClassResume("Win32_EncryptableVolume", "DriveLetter", "ProtectionStatus"))
+        oResume += SummaryLine("Antivirus: ", GetXMLClassResume("AntiVirusProduct", "displayName"))
+
+        Dim oBatteryHealth As String = GetXMLClassResume("BatteryHealth", "HealthPercent")
+        Dim oBatteryCycles As String = GetXMLClassResume("BatteryHealth", "CycleCount")
+        If oBatteryHealth.Length > 0 Then oResume += "Battery: " + oBatteryHealth + " of its design capacity" + If(oBatteryCycles.Length > 0, ", " + oBatteryCycles + " charge cycles", String.Empty) + Environment.NewLine
+        oResume += SummaryLine("Logged on: ", GetXMLClassResume("ComputerSystem", "UserName"))
+        oResume += SummaryLine("Administrators (accounts Windows can name; Azure AD members are not listed): ", GetXMLClassResume("LocalAdministrators", "Name"))
+        oResume += SummaryLine("Office: ", GetXMLClassResume("OfficeClickToRun", "ProductReleaseIds", "Version", "UpdateChannel"))
+        oResume += SummaryLine("Virtualization-based security: ", GetXMLClassResume("Win32_DeviceGuard", "VirtualizationBasedSecurityStatus"))
+        oResume += SummaryLine("Windows 11: ", GetXMLClassResume("Windows11Readiness", "Result"))
+
         Return oResume
+    End Function
+    Private Shared Function SummaryLine(ByVal pLabel As String, ByVal pText As String) As String
+        Return If(String.IsNullOrWhiteSpace(pText), String.Empty, pLabel + pText + Environment.NewLine)
     End Function
     Public Function GetXMLClassResume(ByVal pClass As String, ByVal ParamArray pAttributes As String()) As String
         Dim oResume As String = String.Empty
 
-        Dim oXmlElement As XmlElement = _XmlSystemInfo.DocumentElement.SelectSingleNode("Win32_" + pClass)
+        'A class is given by its full element name (MSFT_PhysicalDisk, WindowsRelease) or as a Win32_ class without the prefix
+        Dim oElementName As String = If(_XmlSystemInfo.DocumentElement.SelectSingleNode(pClass) Is Nothing, "Win32_" + pClass, pClass)
+        Dim oXmlElement As XmlElement = _XmlSystemInfo.DocumentElement.SelectSingleNode(oElementName)
         If Not oXmlElement Is Nothing Then
             Dim oXmlNodeList As XmlNodeList = oXmlElement.SelectNodes("Object")
             For Each oXmlNode As XmlNode In oXmlNodeList
                 Dim oItem As String = String.Empty
                 For Each pAttribute In pAttributes
                     Dim oValue As String = GetXmlNodeAttribute(oXmlNode, pAttribute)
-                    If Not String.IsNullOrEmpty(oValue) Then oItem += GetValue(pAttribute, oValue, "Win32_" + pClass).Trim + " "
+                    If Not String.IsNullOrEmpty(oValue) Then oItem += GetValue(pAttribute, oValue, oElementName).Trim + " "
                 Next
                 If Not String.IsNullOrEmpty(oResume.Trim) Then oResume += Environment.NewLine +vbTab 
                 If Not String.IsNullOrEmpty(oItem.Trim) Then oResume += oItem.Trim
@@ -447,10 +675,10 @@ Public Class WMIViewer
 
         Return oValue
     End Function
-    Private Sub Fill(ByRef lvw As ListView, ByRef oXmlAttribute As XmlAttribute, ByRef oListViewGroup As ListViewGroup, ByVal pClassName As String)
+    Private Sub Fill(ByRef lvw As ListView, ByRef oXmlAttribute As XmlAttribute, ByRef oListViewGroup As ListViewGroup, ByVal pClassName As String, ByVal pFilter As String)
         Dim pValue As String = GetValues(oXmlAttribute.Name, oXmlAttribute.Value, pClassName)
 
-        If pValue.Length > 0 Then
+        If pValue.Length > 0 AndAlso (Matches(oXmlAttribute.Name, pFilter) OrElse Matches(pValue, pFilter)) Then
             Dim oListViewItem As New ListViewItem(oXmlAttribute.Name)
             oListViewItem.SubItems.Add(pValue)
             oListViewItem.Group = oListViewGroup
@@ -470,6 +698,19 @@ Public Class WMIViewer
         Return pValues
     End Function
     Private Function GetValue(ByVal pName As String, ByVal pValue As String, ByVal pClassName As String) As String
+
+        'WMI dates (yyyyMMddHHmmss.ffffff+UUU): 1601-01-01 means "not set"; a date at exactly midnight is a date
+        'without a time (BIOS release) and is shown as is, because converting it to the local time zone would move it a day
+        If System.Text.RegularExpressions.Regex.IsMatch(pValue, "^\d{14}\.\*{6}[+*-]\*{3}$") Then
+            'Driver dates come with the fractions and the time zone left unspecified (asterisks): just the wall-clock date
+            Dim oStarred As Date = Date.ParseExact(pValue.Substring(0, 14), "yyyyMMddHHmmss", Globalization.CultureInfo.InvariantCulture)
+            Return If(oStarred.TimeOfDay = TimeSpan.Zero, oStarred.ToString("d"), oStarred.ToString("g"))
+        End If
+        If System.Text.RegularExpressions.Regex.IsMatch(pValue, "^\d{14}\.\d{6}[+-]\d{3}$") Then
+            If pValue.StartsWith("1601") Then Return String.Empty
+            If pValue.Substring(8, 6) = "000000" Then Return Date.ParseExact(pValue.Substring(0, 8), "yyyyMMdd", Globalization.CultureInfo.InvariantCulture).ToString("d")
+            Return ManagementDateTimeConverter.ToDateTime(pValue).ToString("g")
+        End If
 
         Select Case pName
             Case "CurrentNumberOfColors"
@@ -492,7 +733,7 @@ Public Class WMIViewer
                     End If
                 End If
 
-            Case "CurrentClockSpeed", "ExtClock", "L2CacheSpeed", "L3CacheSpeed", "MaxClockSpeed"
+            Case "CurrentClockSpeed", "ExtClock", "L2CacheSpeed", "L3CacheSpeed", "MaxClockSpeed", "ConfiguredClockSpeed"
                 Dim pSize As Long
                 If Long.TryParse(pValue, pSize) Then
                     If pSize > 0 Then
@@ -506,7 +747,7 @@ Public Class WMIViewer
                 Dim pSize As Long
                 If Long.TryParse(pValue, pSize) Then
                     If pSize > 0 Then
-                        pValue = Get1024(pSize, "Bits por second")
+                        pValue = Get1024(pSize, "Bits per second")
                     Else
                         pValue = String.Empty
                     End If
@@ -518,7 +759,7 @@ Public Class WMIViewer
                         Dim pSize As Long
                         If Long.TryParse(pValue, pSize) Then
                             If pSize > 0 Then
-                                pValue = Get1024(pSize, "Bits por second")
+                                pValue = Get1024(pSize, "Bits per second")
                             Else
                                 pValue = String.Empty
                             End If
@@ -528,14 +769,44 @@ Public Class WMIViewer
                         Dim pSize As Long
                         If Long.TryParse(pValue, pSize) Then
                             If pSize > 0 Then
-                                pValue += " nanoseconds"
+                                pValue += " MegaHertz" 'modern memory reports MHz here (2133 = DDR4-2133), not nanoseconds
                             Else
                                 pValue = String.Empty
                             End If
                         End If
                 End Select
 
-            Case "DesignCapacity"
+            Case "VirtualizationBasedSecurityStatus"
+                Select Case pValue
+                    Case "0" : pValue = "Not enabled"
+                    Case "1" : pValue = "Enabled but not running"
+                    Case "2" : pValue = "Running"
+                End Select
+
+            Case "SecurityServicesRunning", "SecurityServicesConfigured"
+                Select Case pValue
+                    Case "0" : pValue = "None"
+                    Case "1" : pValue = "Credential Guard"
+                    Case "2" : pValue = "Memory integrity (HVCI)"
+                    Case "3" : pValue = "System Guard Secure Launch"
+                    Case "4" : pValue = "SMM firmware measurement"
+                End Select
+
+            Case "AllocatedBaseSize", "CurrentUsage", "PeakUsage"
+                'Win32_PageFileUsage reports megabytes
+                Dim pMegabytes As Long
+                If pClassName = "Win32_PageFileUsage" AndAlso Long.TryParse(pValue, pMegabytes) Then pValue = Get1024(pMegabytes * 1024 * 1024, "Bytes")
+
+            Case "Wear"
+                If pClassName = "MSFT_StorageReliabilityCounter" Then pValue += " % of the life used"
+
+            Case "Temperature"
+                If pClassName = "MSFT_StorageReliabilityCounter" Then pValue += " degrees C"
+
+            Case "PowerOnHours"
+                If pClassName = "MSFT_StorageReliabilityCounter" Then pValue += " hours"
+
+            Case "DesignCapacity", "FullChargedCapacity"
                 Dim pSize As Long
                 If Long.TryParse(pValue, pSize) Then
                     If pSize > 0 Then
@@ -595,7 +866,7 @@ Public Class WMIViewer
                     End If
                 End If
 
-            Case "NunberOfCores"
+            Case "NumberOfCores"
                 Dim pCores As Integer
                 If Integer.TryParse(pValue, pCores) Then
                     If pCores > 0 Then
@@ -609,7 +880,7 @@ Public Class WMIViewer
                 Dim pCores As Integer
                 If Integer.TryParse(pValue, pCores) Then
                     If pCores > 0 Then
-                        pValue = +"Socket "
+                        pValue = "Socket " + pValue
                     Else
                         pValue = String.Empty
                     End If
@@ -798,12 +1069,131 @@ Public Class WMIViewer
                 End If
 
             Case "Location"
+                If pClassName = "Win32_PhysicalMemoryArray" Then
+                    Select Case pValue
+                        Case "1" : pValue = "Other"
+                        Case "2" : pValue = "Unknown"
+                        Case "3" : pValue = "System board or motherboard"
+                        Case "6" : pValue = "PCI add-on card"
+                    End Select
+                Else
+                    Select Case pValue
+                        Case "0" : pValue = "Internal"
+                        Case "1" : pValue = "External"
+                        Case "2" : pValue = "Reserved"
+                        Case "3" : pValue = "Unknown"
+                    End Select
+                End If
+
+            Case "LicenseStatus"
                 Select Case pValue
-                    Case "0" : pValue = "Internal"
-                    Case "1" : pValue = "External"
-                    Case "2" : pValue = "Reserved"
-                    Case "3" : pValue = "Unknown"
+                    Case "0" : pValue = "Unlicensed"
+                    Case "1" : pValue = "Licensed"
+                    Case "2" : pValue = "Initial grace period"
+                    Case "3" : pValue = "Additional grace period (activation timer expired)"
+                    Case "4" : pValue = "Non-genuine grace period"
+                    Case "5" : pValue = "Notification"
+                    Case "6" : pValue = "Extended grace period"
                 End Select
+
+            Case "BusType"
+                Select Case pValue
+                    Case "0" : pValue = "Unknown"
+                    Case "1" : pValue = "SCSI"
+                    Case "2" : pValue = "ATAPI"
+                    Case "3" : pValue = "ATA"
+                    Case "4" : pValue = "IEEE 1394"
+                    Case "5" : pValue = "SSA"
+                    Case "6" : pValue = "Fibre Channel"
+                    Case "7" : pValue = "USB"
+                    Case "8" : pValue = "RAID"
+                    Case "9" : pValue = "iSCSI"
+                    Case "10" : pValue = "SAS"
+                    Case "11" : pValue = "SATA"
+                    Case "12" : pValue = "SD"
+                    Case "13" : pValue = "MMC"
+                    Case "15" : pValue = "File-backed virtual"
+                    Case "16" : pValue = "Storage Spaces"
+                    Case "17" : pValue = "NVMe"
+                End Select
+
+            Case "HealthStatus"
+                Select Case pValue
+                    Case "0" : pValue = "Healthy"
+                    Case "1" : pValue = "Warning"
+                    Case "2" : pValue = "Unhealthy"
+                    Case "5" : pValue = "Unknown"
+                End Select
+
+            Case "OperationalStatus"
+                If pClassName = "MSFT_PhysicalDisk" Then
+                    Select Case pValue
+                        Case "2" : pValue = "OK"
+                        Case "3" : pValue = "Degraded"
+                        Case "5" : pValue = "Predictive failure"
+                        Case "6" : pValue = "Error"
+                        Case "10" : pValue = "Stopped"
+                        Case "12" : pValue = "No contact"
+                        Case "13" : pValue = "Lost communication"
+                    End Select
+                End If
+
+            Case "ProtectionStatus"
+                Select Case pValue
+                    Case "0" : pValue = "Protection off"
+                    Case "1" : pValue = "Protection on"
+                    Case "2" : pValue = "Unknown"
+                End Select
+
+            Case "SMBIOSMemoryType"
+                Select Case pValue
+                    Case "20" : pValue = "DDR"
+                    Case "21" : pValue = "DDR2"
+                    Case "22" : pValue = "DDR2 FB-DIMM"
+                    Case "24" : pValue = "DDR3"
+                    Case "26" : pValue = "DDR4"
+                    Case "27" : pValue = "LPDDR"
+                    Case "28" : pValue = "LPDDR2"
+                    Case "29" : pValue = "LPDDR3"
+                    Case "30" : pValue = "LPDDR4"
+                    Case "34" : pValue = "DDR5"
+                    Case "35" : pValue = "LPDDR5"
+                End Select
+
+            Case "MemoryErrorCorrection"
+                Select Case pValue
+                    Case "1" : pValue = "Other"
+                    Case "2" : pValue = "Unknown"
+                    Case "3" : pValue = "None"
+                    Case "4" : pValue = "Parity"
+                    Case "5" : pValue = "Single-bit ECC"
+                    Case "6" : pValue = "Multi-bit ECC"
+                    Case "7" : pValue = "CRC"
+                End Select
+
+            Case "Use"
+                If pClassName = "Win32_PhysicalMemoryArray" Then
+                    Select Case pValue
+                        Case "1" : pValue = "Other"
+                        Case "2" : pValue = "Unknown"
+                        Case "3" : pValue = "System memory"
+                        Case "4" : pValue = "Video memory"
+                        Case "5" : pValue = "Flash memory"
+                        Case "6" : pValue = "Non-volatile RAM"
+                        Case "7" : pValue = "Cache memory"
+                    End Select
+                End If
+
+            Case "MaxCapacity", "MaxCapacityEx", "EstimatedSizeKB"
+                'These come in kilobytes
+                Dim pKilobytes As Long
+                If Long.TryParse(pValue, pKilobytes) AndAlso pKilobytes > 0 Then pValue = Get1024(pKilobytes * 1024, "Bytes")
+
+            Case "InstalledOn"
+                'Win32_QuickFixEngineering reports either a date or a hexadecimal FILETIME
+                If pClassName = "Win32_QuickFixEngineering" AndAlso System.Text.RegularExpressions.Regex.IsMatch(pValue, "^[0-9A-Fa-f]{16}$") Then
+                    pValue = Date.FromFileTimeUtc(Convert.ToInt64(pValue, 16)).ToString("d")
+                End If
 
             Case "WritePolicy"
                 Select Case pValue
@@ -975,6 +1365,14 @@ Public Class WMIViewer
                 End Select
 
             Case "MediaType"
+                If pClassName = "MSFT_PhysicalDisk" Then
+                    Select Case pValue
+                        Case "0" : pValue = "Unspecified"
+                        Case "3" : pValue = "HDD"
+                        Case "4" : pValue = "SSD"
+                        Case "5" : pValue = "SCM (storage class memory)"
+                    End Select
+                Else
                 Select Case pValue
                     Case "0" : pValue = "Format is unknown"
                     Case "1" : pValue = "5 1/4-Inch Floppy Disk - 1.2 MB - 512 bytes/sector"
@@ -1000,6 +1398,7 @@ Public Class WMIViewer
                     Case "21" : pValue = "3 1/2-Inch Floppy Disk - 230 MB - 512 bytes/sector"
                     Case "22" : pValue = "8-Inch Floppy Disk - 256 KB - 128 bytes/sector"
                 End Select
+                End If
 
             Case "DriveType"
                 Select Case pValue
@@ -2374,51 +2773,193 @@ Public Class WMIExtMonitor
         End Get
     End Property
 
-    Public Shared Function GetMonitors() As List(Of WMIExtMonitor)
+    Private Const HKEY_LOCAL_MACHINE As UInteger = &H80000002UI
+    Private Const DisplayKeyPath As String = "System\CurrentControlSet\Enum\Display"
+
+    ''' <summary>
+    ''' Connected monitors of the target computer. Uses WmiMonitorID (root\wmi), which lists the active
+    ''' monitors without administrator rights, locally and remotely; the EDID in the registry (read
+    ''' through StdRegProv) adds the device description and the numeric serial. When WmiMonitorID is not
+    ''' available, falls back to the registry alone.
+    ''' </summary>
+    Public Shared Function GetMonitors(ByVal pTarget As RemoteTarget) As List(Of WMIExtMonitor)
+        Dim oMonitors As List(Of WMIExtMonitor) = Nothing
+        Try
+            oMonitors = GetMonitorsFromWmi(pTarget)
+        Catch ex As Exception
+            Console.WriteLine("WMIExtMonitor.GetMonitorsFromWmi: " + ex.Message)
+        End Try
+
+        If oMonitors Is Nothing OrElse oMonitors.Count = 0 Then oMonitors = GetMonitorsFromRegistry(pTarget)
+        Return oMonitors
+    End Function
+
+    Private Shared Function GetMonitorsFromWmi(ByVal pTarget As RemoteTarget) As List(Of WMIExtMonitor)
         Dim oMonitors As New List(Of WMIExtMonitor)
 
-        Dim oLocalMachineKey As RegistryKey = Registry.LocalMachine
+        Dim oScope As ManagementScope = pTarget.CreateScope("root\wmi")
+        oScope.Connect()
 
-        Dim oDisplaysKey As RegistryKey = oLocalMachineKey.OpenSubKey("System\CurrentControlSet\Enum\Display")
-        Dim oDisplays() As String = oDisplaysKey.GetSubKeyNames
-        For Each oDisplay As String In oDisplays
+        Dim oRegistry As ManagementClass = Nothing
+        Try
+            Dim oRegistryScope As ManagementScope = pTarget.CreateScope("root\default")
+            oRegistryScope.Connect()
+            oRegistry = New ManagementClass(oRegistryScope, New ManagementPath("StdRegProv"), Nothing)
+        Catch ex As Exception
+            Console.WriteLine("WMIExtMonitor registry enrichment unavailable: " + ex.Message)
+        End Try
 
-            Dim oDisplayKey As RegistryKey = oDisplaysKey.OpenSubKey(oDisplay)
-            Dim oSubDisplays() As String = oDisplayKey.GetSubKeyNames
-            For Each oSubDisplay As String In oSubDisplays
+        Try
+            Using oSearcher As New ManagementObjectSearcher(oScope, New ObjectQuery("SELECT * FROM WmiMonitorID WHERE Active = TRUE"))
+                For Each oObject As ManagementObject In oSearcher.Get
+                    Using oObject
+                        'InstanceName looks like DISPLAY\LEN61C1\8&23b73184&0&UID256_0
+                        Dim oParts() As String = CStr(oObject("InstanceName")).Split("\"c)
+                        If oParts.Length < 3 Then Continue For
 
-                Dim oSubDisplayKey As RegistryKey = oDisplayKey.OpenSubKey(oSubDisplay)
-                Dim oDeviceDesc As String = oSubDisplayKey.GetValue("DeviceDesc")
+                        Dim oMonitor As New WMIExtMonitor
+                        oMonitor.ID = oParts(1)
+                        oMonitor.PNPDeviceID = Text.RegularExpressions.Regex.Replace(oParts(2), "_\d+$", String.Empty)
 
-                Dim oControlKey As RegistryKey = oSubDisplayKey.OpenSubKey("Control")
-                If Not oControlKey Is Nothing Then
+                        If Not oRegistry Is Nothing Then
+                            Try
+                                Dim oPath As String = DisplayKeyPath + "\" + oMonitor.ID + "\" + oMonitor.PNPDeviceID
+                                oMonitor.Device = GetStringValue(oRegistry, oPath, "DeviceDesc")
+                                oMonitor.EDID = GetBinaryValue(oRegistry, oPath + "\Device Parameters", "EDID")
+                                oMonitor.ParseEDID()
+                            Catch ex As Exception
+                                Console.WriteLine("WMIExtMonitor EDID: " + oMonitor.FullName + Environment.NewLine + ex.Message)
+                            End Try
+                        End If
 
-                    Dim oMonitor As New WMIExtMonitor
-                    oMonitor.ID = oDisplay
-                    oMonitor.Device = oDeviceDesc
-                    oMonitor.PNPDeviceID = oSubDisplay
-
-                    Dim oDeviceParametersKey As RegistryKey = oSubDisplayKey.OpenSubKey("Device Parameters")
-                    oMonitor.EDID = oDeviceParametersKey.GetValue("EDID")
-                    If Not oMonitor.EDID Is Nothing Then
-                        GetDescriptor(oMonitor, 54, 71)
-                        GetDescriptor(oMonitor, 72, 89)
-                        GetDescriptor(oMonitor, 90, 107)
-                        GetDescriptor(oMonitor, 108, 125)
-                        GetManufacturerDate(oMonitor)
-                        oMonitor.ManufacturerID = oMonitor.EDID(9) * 256 + oMonitor.EDID(8)
-                        oMonitor.ProductID = oMonitor.EDID(11) * 256 + oMonitor.EDID(10)
-                        oMonitor.SerialNumber = oMonitor.EDID(15) * 256 * 256 * 256 + oMonitor.EDID(14) * 256 * 256 + oMonitor.EDID(13) * 256 + oMonitor.EDID(12)
-                    End If
-
-                    oMonitors.Add(oMonitor)
-                End If
-
-            Next
-        Next
+                        oMonitor.OverlayWmiMonitorID(oObject)
+                        oMonitors.Add(oMonitor)
+                    End Using
+                Next
+            End Using
+        Finally
+            If Not oRegistry Is Nothing Then oRegistry.Dispose()
+        End Try
 
         Return oMonitors
     End Function
+
+    ''' <summary>WmiMonitorID values are cleaner than the ones parsed from the EDID, so they win when present.</summary>
+    Private Sub OverlayWmiMonitorID(ByVal pObject As ManagementObject)
+        Dim oName As String = DecodeWmiString(pObject("UserFriendlyName"))
+        Dim oSerial As String = DecodeWmiString(pObject("SerialNumberID"))
+        Dim oManufacturer As String = DecodeWmiString(pObject("ManufacturerName"))
+        Dim oProduct As String = DecodeWmiString(pObject("ProductCodeID"))
+
+        If oName.Length > 0 Then Me.Name = oName
+        If oSerial.Length > 0 Then Me.Serial = oSerial
+        If oManufacturer.Length > 0 Then Me.ManufacturerID = oManufacturer
+        If oProduct.Length > 0 Then Me.ProductID = oProduct
+
+        If Not pObject("YearOfManufacture") Is Nothing Then
+            Dim oYear As Integer = Convert.ToInt32(pObject("YearOfManufacture"))
+            Dim oWeek As Integer = If(pObject("WeekOfManufacture") Is Nothing, 0, Convert.ToInt32(pObject("WeekOfManufacture")))
+            If oYear >= 1990 AndAlso oYear <= Date.Now.Year + 1 Then
+                Me.ManufacturerDate = oYear.ToString()
+                If oWeek >= 1 AndAlso oWeek <= 53 Then
+                    Me.ManufacturerDate += " week " + oWeek.ToString() + " (" + New Date(oYear, 1, 1).AddDays(oWeek * 7 - 1).ToString("MMMM") + ")"
+                End If
+            End If
+        End If
+    End Sub
+
+    ''' <summary>WmiMonitorID returns text as arrays of UInt16 character codes padded with zeros.</summary>
+    Private Shared Function DecodeWmiString(ByVal pValue As Object) As String
+        Dim oCodes As Array = TryCast(pValue, Array)
+        If oCodes Is Nothing Then Return String.Empty
+
+        Dim oText As New StringBuilder
+        For Each oCode As Object In oCodes
+            Dim oNumber As Integer = Convert.ToInt32(oCode)
+            If oNumber > 0 Then oText.Append(ChrW(oNumber))
+        Next
+        Return oText.ToString().Trim()
+    End Function
+
+    ''' <summary>
+    ''' Fallback: reads the monitors (and their EDID) from the registry of the target computer through the
+    ''' StdRegProv provider. Only lists the instances that have a "Control" subkey, which not every Windows
+    ''' build exposes, so it can come back empty.
+    ''' </summary>
+    Private Shared Function GetMonitorsFromRegistry(ByVal pTarget As RemoteTarget) As List(Of WMIExtMonitor)
+        Dim oMonitors As New List(Of WMIExtMonitor)
+
+        Dim oScope As ManagementScope = pTarget.CreateScope("root\default")
+        oScope.Connect()
+
+        Using oRegistry As New ManagementClass(oScope, New ManagementPath("StdRegProv"), Nothing)
+            For Each oDisplay As String In EnumKey(oRegistry, DisplayKeyPath)
+
+                Dim oDisplayPath As String = DisplayKeyPath + "\" + oDisplay
+                For Each oSubDisplay As String In EnumKey(oRegistry, oDisplayPath)
+
+                    Dim oSubDisplayPath As String = oDisplayPath + "\" + oSubDisplay
+                    If Array.IndexOf(EnumKey(oRegistry, oSubDisplayPath), "Control") >= 0 Then
+
+                        Dim oMonitor As New WMIExtMonitor
+                        oMonitor.ID = oDisplay
+                        oMonitor.Device = GetStringValue(oRegistry, oSubDisplayPath, "DeviceDesc")
+                        oMonitor.PNPDeviceID = oSubDisplay
+                        oMonitor.EDID = GetBinaryValue(oRegistry, oSubDisplayPath + "\Device Parameters", "EDID")
+
+                        oMonitor.ParseEDID()
+                        oMonitors.Add(oMonitor)
+                    End If
+
+                Next
+            Next
+        End Using
+
+        Return oMonitors
+    End Function
+    Private Shared Function EnumKey(ByVal pRegistry As ManagementClass, ByVal pSubKey As String) As String()
+        Dim oInParams As ManagementBaseObject = pRegistry.GetMethodParameters("EnumKey")
+        oInParams("hDefKey") = HKEY_LOCAL_MACHINE
+        oInParams("sSubKeyName") = pSubKey
+
+        Using oOutParams As ManagementBaseObject = pRegistry.InvokeMethod("EnumKey", oInParams, Nothing)
+            Dim oNames As String() = TryCast(oOutParams("sNames"), String())
+            Return If(oNames, New String() {})
+        End Using
+    End Function
+    Private Shared Function GetStringValue(ByVal pRegistry As ManagementClass, ByVal pSubKey As String, ByVal pValueName As String) As String
+        Dim oInParams As ManagementBaseObject = pRegistry.GetMethodParameters("GetStringValue")
+        oInParams("hDefKey") = HKEY_LOCAL_MACHINE
+        oInParams("sSubKeyName") = pSubKey
+        oInParams("sValueName") = pValueName
+
+        Using oOutParams As ManagementBaseObject = pRegistry.InvokeMethod("GetStringValue", oInParams, Nothing)
+            Return TryCast(oOutParams("sValue"), String)
+        End Using
+    End Function
+    Private Shared Function GetBinaryValue(ByVal pRegistry As ManagementClass, ByVal pSubKey As String, ByVal pValueName As String) As Byte()
+        Dim oInParams As ManagementBaseObject = pRegistry.GetMethodParameters("GetBinaryValue")
+        oInParams("hDefKey") = HKEY_LOCAL_MACHINE
+        oInParams("sSubKeyName") = pSubKey
+        oInParams("sValueName") = pValueName
+
+        Using oOutParams As ManagementBaseObject = pRegistry.InvokeMethod("GetBinaryValue", oInParams, Nothing)
+            Return TryCast(oOutParams("uValue"), Byte())
+        End Using
+    End Function
+
+    Private Sub ParseEDID()
+        If Me.EDID Is Nothing Then Exit Sub
+
+        GetDescriptor(Me, 54, 71)
+        GetDescriptor(Me, 72, 89)
+        GetDescriptor(Me, 90, 107)
+        GetDescriptor(Me, 108, 125)
+        GetManufacturerDate(Me)
+        Me.ManufacturerID = Me.EDID(9) * 256 + Me.EDID(8)
+        Me.ProductID = Me.EDID(11) * 256 + Me.EDID(10)
+        Me.SerialNumber = Me.EDID(15) * 256 * 256 * 256 + Me.EDID(14) * 256 * 256 + Me.EDID(13) * 256 + Me.EDID(12)
+    End Sub
     Private Shared Sub GetDescriptor(ByRef pMonitor As WMIExtMonitor, ByVal pFrom As Int32, ByVal pTo As Int32)
         '54 0
         '55 0
