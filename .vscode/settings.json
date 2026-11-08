@@ -1,0 +1,25 @@
+{
+    "VsCodeTaskButtons.showCounter": false,
+    "VsCodeTaskButtons.tasks": [
+        {
+            "label": "$(tools) Build",
+            "task": "build",
+            "tooltip": "dotnet build (pick Debug or Release)"
+        },
+        {
+            "label": "$(sync) Rebuild",
+            "task": "rebuild",
+            "tooltip": "dotnet build --no-incremental (pick Debug or Release)"
+        },
+        {
+            "label": "$(trash) Clean",
+            "task": "clean",
+            "tooltip": "dotnet clean (pick Debug or Release)"
+        },
+        {
+            "label": "$(package) Publish",
+            "task": "publish",
+            "tooltip": "Release, single self-contained .exe"
+        }
+    ]
+}

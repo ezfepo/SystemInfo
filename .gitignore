@@ -8,6 +8,7 @@ SystemInfo.*.xml
 
 # Claude Code plans (local only, not versioned)
 .claude/plans/
+.claude/settings.local.json
 
 # Visual Studio
 .vs/
@@ -20,3 +21,5 @@ SystemInfo.*.xml
 !.vscode/extensions.json
 !.vscode/tasks.json
 !.vscode/launch.json
+!.vscode/settings.json
+!.vscode/SystemInfo.code-profile
