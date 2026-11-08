@@ -21,6 +21,8 @@ dotnet run --project SystemInfo/SystemInfo.vbproj   # run
 
 `Directory.Build.props` defaults `Configuration` to `Release` when `-c`/`--configuration` isn't passed, so plain `dotnet build`/`clean`/`build -t:Rebuild` (and the VS Code tasks in `.vscode/tasks.json`) all produce Release output. Pass `-c Debug` explicitly to get a Debug build.
 
+Publish (VS Code task `publish`) is Release only and produces one self-contained `SystemInfo.exe` (win-x64, compressed, no .NET install needed) in `SystemInfo/bin/Release/net8.0-windows/win-x64/publish/`. The single-file switches live in the task's command line, not in the `.vbproj`, so plain builds keep their usual output folder. Equivalent command: `dotnet publish SystemInfo/SystemInfo.vbproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true`. `appsettings.json` stays next to the exe (optional) so the output folder can still be configured.
+
 No automated tests or CI configured.
 
 ## Architecture (main flow)

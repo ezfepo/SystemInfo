@@ -2,10 +2,21 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "SystemInfo",
+            "name": "SystemInfo (Debug)",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build",
+            "preLaunchTask": "build-debug",
+            "program": "${workspaceFolder}/SystemInfo/bin/Debug/net8.0-windows/SystemInfo.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/SystemInfo/bin/Debug/net8.0-windows",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
+            "name": "SystemInfo (Release)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-release",
             "program": "${workspaceFolder}/SystemInfo/bin/Release/net8.0-windows/SystemInfo.exe",
             "args": [],
             "cwd": "${workspaceFolder}/SystemInfo/bin/Release/net8.0-windows",

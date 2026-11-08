@@ -1,15 +1,28 @@
 {
     "version": "2.0.0",
+    "inputs": [
+        {
+            "id": "configuration",
+            "type": "pickString",
+            "description": "Build configuration",
+            "options": [
+                "Release",
+                "Debug"
+            ],
+            "default": "Release"
+        }
+    ],
     "tasks": [
         {
             "label": "build",
+            "detail": "dotnet build (asks for Debug/Release)",
             "type": "process",
             "command": "dotnet",
             "args": [
                 "build",
                 "${workspaceFolder}/SystemInfo.slnx",
                 "--configuration",
-                "Release",
+                "${input:configuration}",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -21,13 +34,14 @@
         },
         {
             "label": "rebuild",
+            "detail": "dotnet build --no-incremental (asks for Debug/Release)",
             "type": "process",
             "command": "dotnet",
             "args": [
                 "build",
                 "${workspaceFolder}/SystemInfo.slnx",
                 "--configuration",
-                "Release",
+                "${input:configuration}",
                 "--no-incremental",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
@@ -37,19 +51,21 @@
         },
         {
             "label": "clean",
+            "detail": "dotnet clean (asks for Debug/Release)",
             "type": "process",
             "command": "dotnet",
             "args": [
                 "clean",
                 "${workspaceFolder}/SystemInfo.slnx",
                 "--configuration",
-                "Release"
+                "${input:configuration}"
             ],
             "problemMatcher": "$msCompile",
             "group": "build"
         },
         {
             "label": "publish",
+            "detail": "Release, single self-contained .exe (win-x64)",
             "type": "process",
             "command": "dotnet",
             "args": [
@@ -57,11 +73,50 @@
                 "${workspaceFolder}/SystemInfo/SystemInfo.vbproj",
                 "--configuration",
                 "Release",
+                "--runtime",
+                "win-x64",
+                "--self-contained",
+                "true",
+                "/property:PublishSingleFile=true",
+                "/property:IncludeNativeLibrariesForSelfExtract=true",
+                "/property:EnableCompressionInSingleFile=true",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile",
             "group": "build"
+        },
+        {
+            "label": "build-debug",
+            "detail": "Used by the Debug launch configuration",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/SystemInfo.slnx",
+                "--configuration",
+                "Debug",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "hide": true
+        },
+        {
+            "label": "build-release",
+            "detail": "Used by the Release launch configuration",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/SystemInfo.slnx",
+                "--configuration",
+                "Release",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "hide": true
         }
     ]
 }
