@@ -89,7 +89,7 @@ if ($create) {
     }
     else {
         New-LocalUser -Name $UserName -Password $password -PasswordNeverExpires -AccountNeverExpires `
-            -Description 'Used by SystemInfo to scan this computer remotely' | Out-Null
+            -Description 'Used by SystemInfo to scan this PC remotely' | Out-Null
         Write-Host "Account '$UserName' created."
     }
 
