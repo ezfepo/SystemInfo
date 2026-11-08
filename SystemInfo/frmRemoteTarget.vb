@@ -17,6 +17,7 @@ Public Class frmRemoteTarget
         UiTheme.Apply(Me)
         UiTheme.StylePrimaryButton(btnScan)
         UiTheme.StyleSecondaryButton(btnTest)
+        UiTheme.StyleSecondaryButton(btnFind)
         UiTheme.StyleSecondaryButton(btnCancel)
         UiTheme.StyleLink(lnkSetup)
 
@@ -43,6 +44,19 @@ Public Class frmRemoteTarget
         Dim oEntry As RecentTargets.Entry = TryCast(cboComputer.SelectedItem, RecentTargets.Entry)
         If Not oEntry Is Nothing Then txtUser.Text = oEntry.UserName
         ShowResult(String.Empty, UiTheme.TextColor)
+    End Sub
+
+    Private Sub btnFind_Click(ByVal sender As Object, ByVal e As EventArgs) Handles btnFind.Click
+        If _Testing Then Exit Sub
+        Using oFind As New frmNetworkScan
+            If oFind.ShowDialog(Me) = DialogResult.OK Then
+                cboComputer.Text = oFind.SelectedHost
+                ShowResult(String.Empty, UiTheme.TextColor)
+                'Saved credentials belong to a known computer: a new one starts from the default account
+                If txtUser.Text.Length = 0 Then txtUser.Text = DefaultUserName
+                txtPassword.Focus()
+            End If
+        End Using
     End Sub
 
     Private Sub chkShowPassword_CheckedChanged(ByVal sender As Object, ByVal e As EventArgs) Handles chkShowPassword.CheckedChanged
@@ -91,6 +105,7 @@ Public Class frmRemoteTarget
     Private Sub SetTesting(ByVal pTesting As Boolean)
         _Testing = pTesting
         cboComputer.Enabled = Not pTesting
+        btnFind.Enabled = Not pTesting
         txtUser.Enabled = Not pTesting
         txtPassword.Enabled = Not pTesting
         btnTest.Enabled = Not pTesting

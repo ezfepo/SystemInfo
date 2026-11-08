@@ -24,7 +24,9 @@ Partial Class frmRemoteTarget
     Private Sub InitializeComponent()
         Me.tlpMain = New System.Windows.Forms.TableLayoutPanel()
         Me.lblComputer = New System.Windows.Forms.Label()
+        Me.tlpComputer = New System.Windows.Forms.TableLayoutPanel()
         Me.cboComputer = New System.Windows.Forms.ComboBox()
+        Me.btnFind = New System.Windows.Forms.Button()
         Me.lblUser = New System.Windows.Forms.Label()
         Me.txtUser = New System.Windows.Forms.TextBox()
         Me.lblUserHint = New System.Windows.Forms.Label()
@@ -39,6 +41,7 @@ Partial Class frmRemoteTarget
         Me.btnScan = New System.Windows.Forms.Button()
         Me.btnTest = New System.Windows.Forms.Button()
         Me.tlpMain.SuspendLayout()
+        Me.tlpComputer.SuspendLayout()
         Me.tlpPassword.SuspendLayout()
         Me.flpButtons.SuspendLayout()
         Me.SuspendLayout()
@@ -50,7 +53,7 @@ Partial Class frmRemoteTarget
         Me.tlpMain.ColumnCount = 1
         Me.tlpMain.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 400.0!))
         Me.tlpMain.Controls.Add(Me.lblComputer, 0, 0)
-        Me.tlpMain.Controls.Add(Me.cboComputer, 0, 1)
+        Me.tlpMain.Controls.Add(Me.tlpComputer, 0, 1)
         Me.tlpMain.Controls.Add(Me.lblUser, 0, 2)
         Me.tlpMain.Controls.Add(Me.txtUser, 0, 3)
         Me.tlpMain.Controls.Add(Me.lblUserHint, 0, 4)
@@ -86,14 +89,43 @@ Partial Class frmRemoteTarget
         Me.lblComputer.TabIndex = 0
         Me.lblComputer.Text = "&Computer"
         '
+        'tlpComputer
+        '
+        Me.tlpComputer.AutoSize = True
+        Me.tlpComputer.ColumnCount = 2
+        Me.tlpComputer.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
+        Me.tlpComputer.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle())
+        Me.tlpComputer.Controls.Add(Me.cboComputer, 0, 0)
+        Me.tlpComputer.Controls.Add(Me.btnFind, 1, 0)
+        Me.tlpComputer.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.tlpComputer.Location = New System.Drawing.Point(20, 35)
+        Me.tlpComputer.Margin = New System.Windows.Forms.Padding(0, 0, 0, 12)
+        Me.tlpComputer.Name = "tlpComputer"
+        Me.tlpComputer.RowCount = 1
+        Me.tlpComputer.RowStyles.Add(New System.Windows.Forms.RowStyle())
+        Me.tlpComputer.Size = New System.Drawing.Size(400, 25)
+        Me.tlpComputer.TabIndex = 1
+        '
         'cboComputer
         '
-        Me.cboComputer.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.cboComputer.Location = New System.Drawing.Point(20, 35)
-        Me.cboComputer.Margin = New System.Windows.Forms.Padding(0, 0, 0, 12)
+        Me.cboComputer.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.cboComputer.Location = New System.Drawing.Point(0, 1)
+        Me.cboComputer.Margin = New System.Windows.Forms.Padding(0)
         Me.cboComputer.Name = "cboComputer"
-        Me.cboComputer.Size = New System.Drawing.Size(400, 23)
-        Me.cboComputer.TabIndex = 1
+        Me.cboComputer.Size = New System.Drawing.Size(300, 23)
+        Me.cboComputer.TabIndex = 0
+        '
+        'btnFind
+        '
+        Me.btnFind.Anchor = System.Windows.Forms.AnchorStyles.Left
+        Me.btnFind.AutoSize = True
+        Me.btnFind.Location = New System.Drawing.Point(308, 0)
+        Me.btnFind.Margin = New System.Windows.Forms.Padding(8, 0, 0, 0)
+        Me.btnFind.MinimumSize = New System.Drawing.Size(92, 25)
+        Me.btnFind.Name = "btnFind"
+        Me.btnFind.Size = New System.Drawing.Size(92, 25)
+        Me.btnFind.TabIndex = 1
+        Me.btnFind.Text = "&Find" & ChrW(8230)
         '
         'lblUser
         '
@@ -266,6 +298,8 @@ Partial Class frmRemoteTarget
         Me.Text = "Scan remote computer"
         Me.tlpMain.ResumeLayout(False)
         Me.tlpMain.PerformLayout()
+        Me.tlpComputer.ResumeLayout(False)
+        Me.tlpComputer.PerformLayout()
         Me.tlpPassword.ResumeLayout(False)
         Me.tlpPassword.PerformLayout()
         Me.flpButtons.ResumeLayout(False)
@@ -277,7 +311,9 @@ Partial Class frmRemoteTarget
 
     Friend WithEvents tlpMain As System.Windows.Forms.TableLayoutPanel
     Friend WithEvents lblComputer As System.Windows.Forms.Label
+    Friend WithEvents tlpComputer As System.Windows.Forms.TableLayoutPanel
     Friend WithEvents cboComputer As System.Windows.Forms.ComboBox
+    Friend WithEvents btnFind As System.Windows.Forms.Button
     Friend WithEvents lblUser As System.Windows.Forms.Label
     Friend WithEvents txtUser As System.Windows.Forms.TextBox
     Friend WithEvents lblUserHint As System.Windows.Forms.Label
