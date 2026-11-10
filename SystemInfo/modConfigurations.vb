@@ -415,6 +415,10 @@ Module modConfigurations
         AddAttribute(pXmlClass, "Name")
         AddAttribute(pXmlClass, "LicenseStatus")
 
+        pXmlClass = AddItem(pSystemInfo, "VideoMemory")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "DedicatedVideoMemory")
+
         pXmlClass = AddItem(pSystemInfo, "BootSecurity")
         AddAttribute(pXmlClass, "FirmwareType")
         AddAttribute(pXmlClass, "SecureBoot")
@@ -933,6 +937,10 @@ Module modConfigurations
         AddAttribute(pXmlClass, "LicenseStatus")
         AddAttribute(pXmlClass, "PartialProductKey")
 
+        pXmlClass = AddItem(pSystemInfo, "VideoMemory")
+        AddAttribute(pXmlClass, "Name")
+        AddAttribute(pXmlClass, "DedicatedVideoMemory")
+
         pXmlClass = AddItem(pSystemInfo, "BootSecurity")
         AddAttribute(pXmlClass, "FirmwareType")
         AddAttribute(pXmlClass, "SecureBoot")
@@ -1143,6 +1151,7 @@ Module modConfigurations
         pXmlClass = AddItem(pSystemInfo, "MSFT_PhysicalDisk")
         pXmlClass = AddItem(pSystemInfo, "WindowsRelease")
         pXmlClass = AddItem(pSystemInfo, "SoftwareLicensingProduct")
+        pXmlClass = AddItem(pSystemInfo, "VideoMemory")
         pXmlClass = AddItem(pSystemInfo, "BootSecurity")
         pXmlClass = AddItem(pSystemInfo, "Win32_Tpm")
         pXmlClass = AddItem(pSystemInfo, "Win32_EncryptableVolume")
