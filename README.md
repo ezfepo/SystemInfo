@@ -59,6 +59,7 @@ It does three things:
 Besides the hardware classes (`Win32_*`: board, BIOS, CPU, RAM modules, disks, network, video, monitors, batteries, printers, …) a report includes:
 
 - **Installed programs** (name, version, publisher, install date), read from the Uninstall registry keys. Updates and system components are left out; programs installed only for a user who is not logged on are not visible.
+- **Video memory**: the real dedicated memory of each graphics card, read from the driver's 64-bit registry value. `Win32_VideoController.AdapterRAM` is a 32-bit field and reports at most about 4 GB, so cards with 6 GB or more show up too small there.
 - **Windows**: edition, feature update (for example 25H2) and exact build, activation status, installed updates, and firmware type with Secure Boot state.
 - **Storage and memory**: SSD/HDD, bus (NVMe, SATA, USB) and health of each physical disk, and memory slots used versus maximum RAM.
 - **Security**: antivirus products, Microsoft Defender status (real-time protection, signature date) and devices with driver problems. **TPM** and **BitLocker** are only reported when SystemInfo runs as administrator, or, in a remote scan, when the account you enter is an administrator of that computer.

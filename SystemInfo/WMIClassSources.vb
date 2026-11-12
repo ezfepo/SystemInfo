@@ -61,7 +61,8 @@ Friend Module WMIClassSources
         {"Win32_EncryptableVolume", New WMIClassSource("root\CIMV2\Security\MicrosoftVolumeEncryption", String.Empty, Nothing)},
         {"InstalledSoftware", New WMIClassSource(Cimv2, String.Empty, AddressOf InventoryReaders.ReadInstalledSoftware)},
         {"WindowsRelease", New WMIClassSource(Cimv2, String.Empty, AddressOf InventoryReaders.ReadWindowsRelease)},
-        {"BootSecurity", New WMIClassSource(Cimv2, String.Empty, AddressOf InventoryReaders.ReadBootSecurity)}
+        {"BootSecurity", New WMIClassSource(Cimv2, String.Empty, AddressOf InventoryReaders.ReadBootSecurity)},
+        {"VideoMemory", New WMIClassSource(Cimv2, String.Empty, AddressOf InventoryReaders.ReadVideoMemory)}
     }
 
     'Names shown in the viewer for the classes whose WMI name says little to a person

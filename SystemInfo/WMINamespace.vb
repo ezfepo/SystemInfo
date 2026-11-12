@@ -600,6 +600,8 @@ Public Class WMIViewer
         oResume += "Cache: " + GetXMLClassResume("CacheMemory", "Level", "CacheType", "Purpose", "InstalledSize") + Environment.NewLine
         oResume += "RAM: " + GetXMLClassResume("PhysicalMemory", "Manufacturer", "SMBIOSMemoryType", "FormFactor", "Capacity", "Speed", "MinVoltage", "PartNumber") + Environment.NewLine
         oResume += "Video: " + GetXMLClassResume("VideoController", "AdapterRAM", "Name", "AdapterDACType", "VideoArchitecture") + Environment.NewLine
+        Dim oVideoMemory As String = GetXMLClassResume("VideoMemory", "Name", "DedicatedVideoMemory")
+        If oVideoMemory.Length > 0 Then oResume += "Video memory: " + oVideoMemory + Environment.NewLine
         oResume += "HD: " + GetXMLClassResume("DiskDrive", "InterfaceType", "Model", "Size") + Environment.NewLine
         oResume += "CD/DVD: " + GetXMLClassResume("CDROMDrive", "Name", "MediaType") + Environment.NewLine
 
@@ -906,7 +908,7 @@ Public Class WMIViewer
                     End If
                 End If
 
-            Case "TotalPhysicalMemory", "BlockSize", "InstalledSize", "MaxCacheSize", "BytesPerSector", "Size", "FreeSpace", "EndingAddress", "StartingAddress", "Capacity", "TransferRate", "FreePhysicalMemory", "FreeSpaceInPagingFiles", "FreeVirtualMemory", "MaxProcessMemorySize", "SizeStoredInPagingFiles", "TotalVirtualMemorySize", "TotalVisibleMemorySize", "L2CacheSize", "L3CacheSize", "AdapterRAM"
+            Case "TotalPhysicalMemory", "BlockSize", "InstalledSize", "MaxCacheSize", "BytesPerSector", "Size", "FreeSpace", "EndingAddress", "StartingAddress", "Capacity", "TransferRate", "FreePhysicalMemory", "FreeSpaceInPagingFiles", "FreeVirtualMemory", "MaxProcessMemorySize", "SizeStoredInPagingFiles", "TotalVirtualMemorySize", "TotalVisibleMemorySize", "L2CacheSize", "L3CacheSize", "AdapterRAM", "DedicatedVideoMemory"
                 Dim pSize As Long
                 If Long.TryParse(pValue, pSize) Then
                     If pName = "InstalledSize" Or pName = "MaxCacheSize" Or pName = "EndingAddress" Or pName = "StartingAddress" Or pName = "TransferRate" Or pName = "FreePhysicalMemory" Or pName = "FreeSpaceInPagingFiles" Or pName = "FreeVirtualMemory" Or pName = "MaxProcessMemorySize" Or pName = "SizeStoredInPagingFiles" Or pName = "TotalVirtualMemorySize" Or pName = "TotalVisibleMemorySize" Or pName = "L2CacheSize" Or pName = "L3CacheSize" Then pSize = pSize * 1024

@@ -1,3 +1,4 @@
+Imports System.Globalization
 Imports System.Management
 
 ''' <summary>
@@ -35,6 +36,14 @@ Friend NotInheritable Class StdRegistry
         Using oResult As ManagementBaseObject = Invoke("GetDWORDValue", pSubKey, pValueName)
             If oResult Is Nothing OrElse oResult("uValue") Is Nothing Then Return Nothing
             Return Convert.ToInt64(oResult("uValue"))
+        End Using
+    End Function
+
+    ''' <summary>Reads a REG_QWORD value (64 bits); Nothing when it does not exist.</summary>
+    Friend Function GetQWord(ByVal pSubKey As String, ByVal pValueName As String) As Long?
+        Using oResult As ManagementBaseObject = Invoke("GetQWORDValue", pSubKey, pValueName)
+            If oResult Is Nothing OrElse oResult("uValue") Is Nothing Then Return Nothing
+            Return Convert.ToInt64(Convert.ToUInt64(oResult("uValue"), CultureInfo.InvariantCulture))
         End Using
     End Function
 

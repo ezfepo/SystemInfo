@@ -12,6 +12,7 @@ Friend Module InventoryReaders
     Private Const CurrentVersionPath As String = "SOFTWARE\Microsoft\Windows NT\CurrentVersion"
     Private Const SecureBootStatePath As String = "SYSTEM\CurrentControlSet\Control\SecureBoot\State"
     Private Const Windows11FirstBuild As Integer = 22000
+    Private Const DisplayClassPath As String = "SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
 
     ''' <summary>
     ''' Programs listed in Programs and Features: the 64-bit and the 32-bit Uninstall keys of the computer.
@@ -116,6 +117,34 @@ Friend Module InventoryReaders
                 oBoot.Add("SecureBoot", "Not supported")
             End If
             oResult.Add(oBoot)
+        End Using
+
+        Return oResult
+    End Function
+
+    ''' <summary>
+    ''' Dedicated video memory of each display adapter. Win32_VideoController.AdapterRAM is a 32-bit value, so it
+    ''' tops out near 4 GB and under-reports bigger cards; the driver also stores the real size as a 64-bit value
+    ''' (HardwareInformation.qwMemorySize) in the display class key, which is what this reads. Adapters without
+    ''' that value (some virtual and remote-display adapters) are left out.
+    ''' </summary>
+    Friend Function ReadVideoMemory(ByVal pTarget As RemoteTarget, ByVal pCancel As Func(Of Boolean)) As List(Of SyntheticObject)
+        Dim oResult As New List(Of SyntheticObject)
+
+        Using oRegistry As New StdRegistry(pTarget)
+            For Each oKey As String In oRegistry.EnumKey(DisplayClassPath)
+                If pCancel() Then Return oResult
+                If Not oKey.All(Function(oChar) Char.IsDigit(oChar)) Then Continue For 'Configuration, Properties...
+
+                Dim oPath As String = DisplayClassPath + "\" + oKey
+                Dim oMemory As Long? = oRegistry.GetQWord(oPath, "HardwareInformation.qwMemorySize")
+                If Not oMemory.HasValue OrElse oMemory.Value <= 0 Then Continue For
+
+                Dim oAdapter As New SyntheticObject("VideoMemory")
+                oAdapter.Add("Name", oRegistry.GetString(oPath, "DriverDesc"))
+                oAdapter.Add("DedicatedVideoMemory", oMemory.Value.ToString(CultureInfo.InvariantCulture))
+                oResult.Add(oAdapter)
+            Next
         End Using
 
         Return oResult
