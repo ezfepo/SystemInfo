@@ -8,7 +8,7 @@ Windows desktop application (VB.NET / WinForms) that uses WMI to generate a hard
 
 ## Stack
 
-- VB.NET, SDK-style `.vbproj`, `net8.0-windows`
+- VB.NET, SDK-style `.vbproj`, `net10.0-windows`
 - WinForms (`UseWindowsForms=true`)
 - WMI via `System.Management` (NuGet package, not included in the base SDK)
 
@@ -19,9 +19,9 @@ dotnet build SystemInfo.slnx      # build
 dotnet run --project SystemInfo/SystemInfo.vbproj   # run
 ```
 
-`Directory.Build.props` defaults `Configuration` to `Release` when `-c`/`--configuration` isn't passed, so plain `dotnet build`/`clean`/`build -t:Rebuild` (and the VS Code tasks in `.vscode/tasks.json`) all produce Release output. Pass `-c Debug` explicitly to get a Debug build.
+`Directory.Build.props` (project builds) and `Directory.Solution.props` (builds of `SystemInfo.slnx`, which otherwise default to Debug) default `Configuration` to `Release` when `-c`/`--configuration` isn't passed, so plain `dotnet build`/`clean`/`build -t:Rebuild` (and the VS Code tasks in `.vscode/tasks.json`) all produce Release output. Pass `-c Debug` explicitly to get a Debug build.
 
-Publish (VS Code task `publish`) is Release only and produces one self-contained `SystemInfo.exe` (win-x64, compressed, no .NET install needed) in `SystemInfo/bin/Release/net8.0-windows/win-x64/publish/`. The single-file switches live in the task's command line, not in the `.vbproj`, so plain builds keep their usual output folder. Equivalent command: `dotnet publish SystemInfo/SystemInfo.vbproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true`. `appsettings.json` stays next to the exe (optional) so the output folder can still be configured.
+Publish (VS Code task `publish`) is Release only and produces one self-contained `SystemInfo.exe` (win-x64, compressed, no .NET install needed) in `SystemInfo/bin/Release/net10.0-windows/win-x64/publish/`. The single-file switches live in the task's command line, not in the `.vbproj`, so plain builds keep their usual output folder. Equivalent command: `dotnet publish SystemInfo/SystemInfo.vbproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true`. `appsettings.json` stays next to the exe (optional) so the output folder can still be configured.
 
 No automated tests or CI configured.
 
@@ -47,7 +47,7 @@ modMain.vb (Sub Main: DPI mode, default font, runs frmMain)
 - `RemoteTarget.vb` builds the `ConnectionOptions` (Impersonate, PacketPrivacy as the DCOM hardening requires, EnablePrivileges) and `IsLocal` (WMI rejects explicit credentials on local connections). `EnsureReachable()` probes TCP 135 first so an unreachable host fails in ~3 s instead of DCOM's ~26 s.
 - `NetworkDiscovery.vb` + `frmNetworkScan.vb` (opened by the Find button of `frmRemoteTarget`) look for computers on this PC's IPv4 subnets (at most a /22 each, link-local skipped): they probe TCP 135 on every address (128 in parallel, 800 ms) and resolve names through reverse DNS. Hosts that block 135 don't show up, and they can't be scanned through WMI either.
 - `ConnectionErrors.vb` turns DCOM/WMI exceptions into actionable messages and appends `Details: <exception> 0x…`; `RecentTargets.vb` keeps host + user name (never passwords) in `%LOCALAPPDATA%\SystemInfo\recent-targets.json`.
-- `UiTheme.vb` holds fonts, the semantic light/dark palette (`SurfaceColor`, `TextColor`, `MutedTextColor`, `AccentOnSurface`…), the Windows accent color (darkened until white text reaches 4.5:1), DPI helpers (`Dp`), button styles, Segoe Fluent Icons glyphs and rounded corners. Use the palette properties, never `SystemColors`, in new code. `Theme` in `appsettings.json` (`Auto`/`Light`/`Dark`) picks the palette at startup. Every form calls `UiTheme.Apply(Me)` first thing in `Load`; in dark mode that runs `ThemeApplier.vb`, which recolors the controls the designer set with system colors, asks Windows for dark scroll bars/combo/list header, draws the ListView header and disabled buttons by hand (Windows ignores `ForeColor` there) and owner-draws tooltips. Light mode keeps the plain system look. .NET 8 WinForms has no dark mode of its own; MessageBox and the common file dialogs stay light. The app is per-monitor DPI aware (`AutoScaleMode.Dpi`); don't hardcode pixel sizes without `Dp`.
+- `UiTheme.vb` holds fonts, the semantic light/dark palette (`SurfaceColor`, `TextColor`, `MutedTextColor`, `AccentOnSurface`…), the Windows accent color (darkened until white text reaches 4.5:1), DPI helpers (`Dp`), button styles, Segoe Fluent Icons glyphs and rounded corners. Use the palette properties, never `SystemColors`, in new code. `Theme` in `appsettings.json` (`Auto`/`Light`/`Dark`) picks the palette at startup. Every form calls `UiTheme.Apply(Me)` first thing in `Load`; in dark mode that runs `ThemeApplier.vb`, which recolors the controls the designer set with system colors, asks Windows for dark scroll bars/combo/list header, draws the ListView header and disabled buttons by hand (Windows ignores `ForeColor` there) and owner-draws tooltips. Light mode keeps the plain system look. .NET 10 WinForms has no stable dark mode of its own (only an experimental one); MessageBox and the common file dialogs stay light. The app is per-monitor DPI aware (`AutoScaleMode.Dpi`); don't hardcode pixel sizes without `Dp`.
 - `ListViewSorter.vb` / `ConsoleRedir.vb` are UI utilities (column sorting, console redirection to a RichTextBox).
 - There is no mail-sending functionality (removed along with `MailSender.vb`). When a scan finishes, the report is loaded into the viewer; it is not opened externally.
 - `AppConfiguration.vb` reads `appsettings.json` (key `OutputFolder`) via `Microsoft.Extensions.Configuration`; it controls where `WMINamespace.FileName` saves the XML and where `frmMain` looks for reports by default. Empty/absent = executable's folder.
@@ -62,4 +62,4 @@ modMain.vb (Sub Main: DPI mode, default font, runs frmMain)
 ## Important notes
 
 - `bin/`, `SystemInfo/obj/`, and `.vs/` are in `.gitignore` and must not be tracked again.
-- The project was migrated from a classic `.vbproj` targeting .NET Framework 2.0 to SDK-style / .NET 8. If undefined WinForms/XML type errors appear, check the `<Import>` entries in `SystemInfo.vbproj` (SDK-style VB does not bring in implicit imports for `System.Windows.Forms`/`System.Xml`/etc. the way the classic project did).
+- The project was migrated from a classic `.vbproj` targeting .NET Framework 2.0 to SDK-style / .NET 10. If undefined WinForms/XML type errors appear, check the `<Import>` entries in `SystemInfo.vbproj` (SDK-style VB does not bring in implicit imports for `System.Windows.Forms`/`System.Xml`/etc. the way the classic project did).

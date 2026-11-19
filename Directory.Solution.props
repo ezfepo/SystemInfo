@@ -1,0 +1,8 @@
+<Project>
+
+  <!-- Solution builds (dotnet build SystemInfo.slnx) otherwise default to Debug; keep Release like Directory.Build.props. -->
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+  </PropertyGroup>
+
+</Project>
