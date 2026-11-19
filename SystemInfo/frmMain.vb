@@ -9,6 +9,7 @@ Public Class frmMain
     Private _Scanning As Boolean
 
     ''' <summary>Report to open as soon as the window loads (used when the app restarts to change the theme).</summary>
+    <System.ComponentModel.Browsable(False), System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)>
     Public Property StartupReport As String
 
 #Region "Startup"

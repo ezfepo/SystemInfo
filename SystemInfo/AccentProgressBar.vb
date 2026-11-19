@@ -29,6 +29,7 @@ Public Class AccentProgressBar
     End Sub
 
     ''' <summary>Progress, 0-100.</summary>
+    <System.ComponentModel.Browsable(False), System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)>
     Public Property Value As Double
         Get
             Return _Value
@@ -40,6 +41,7 @@ Public Class AccentProgressBar
         End Set
     End Property
 
+    <System.ComponentModel.Browsable(False), System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)>
     Public Property Indeterminate As Boolean
         Get
             Return _Indeterminate
@@ -53,6 +55,7 @@ Public Class AccentProgressBar
     End Property
 
     ''' <summary>Shows a faint sliding segment over the unfilled part of the bar (determinate mode only).</summary>
+    <System.ComponentModel.Browsable(False), System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)>
     Public Property Active As Boolean
         Get
             Return _Active

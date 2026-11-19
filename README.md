@@ -5,7 +5,7 @@ Windows desktop utility (VB.NET / WinForms) that generates a hardware and softwa
 ## Requirements
 
 - Windows
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) to build, or the .NET 8 Desktop Runtime to run
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) to build, or the .NET 10 Desktop Runtime to run
 
 ## Build and run
 
